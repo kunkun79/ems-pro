@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 企业管理系统 Pro</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei',sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; min-height: 100vh; background: linear-gradient(180deg, #1a1a2e, #16213e); color: #fff; padding-top: 20px; }
+        .sidebar .logo { padding: 0 20px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sidebar a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255,255,255,.7); text-decoration: none; font-size: 15px; border-left: 3px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.08); border-left-color: #4361ee; }
+        .main { flex: 1; padding: 24px; }
+        .top-bar { background: #fff; border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .content-card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,.06); max-width: 600px; margin: 0 auto; }
+        .form-control { border-radius: 8px; padding: 10px 14px; }
+        .btn-primary { background: #4361ee; border-color: #4361ee; border-radius: 8px; padding: 10px 24px; }
+        .user-avatar {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 32px; margin: 0 auto 24px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">🚀 企业管理系统 Pro</div>
+        <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/employee"><i class="bi bi-people"></i> 员工管理</a>
+        <a href="/department"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/bigdata"><i class="bi bi-bar-chart"></i> 大数据分析</a>
+        <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
+        <a href="/admin" class="active"><i class="bi bi-person-gear"></i> 个人中心</a>
+    </nav>
+    <div class="main">
+        <div class="top-bar">
+            <h5 class="mb-0">👤 个人中心</h5>
+            <div><span id="userName"></span> <button class="btn btn-outline-secondary btn-sm ms-2" onclick="logout()">退出</button></div>
+        </div>
+        <div class="content-card">
+            <div class="user-avatar"><i class="bi bi-person-fill"></i></div>
+            <h4 class="text-center mb-4" id="displayName">-</h4>
+            <hr>
+            <h6 class="mb-3">🔒 修改密码</h6>
+            <div class="mb-3"><label class="form-label">旧密码</label><input type="password" class="form-control" id="oldPwd"></div>
+            <div class="mb-3"><label class="form-label">新密码</label><input type="password" class="form-control" id="newPwd"></div>
+            <div class="mb-4"><label class="form-label">确认新密码</label><input type="password" class="form-control" id="confirmPwd"></div>
+            <div id="msgBox" class="alert" style="display:none;"></div>
+            <button class="btn btn-primary w-100" onclick="changePwd()">修改密码</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        const API='/api';
+        function logout(){$.post('/api/logout',()=>location.href='/login');}
+        $(function(){
+            $.get(API+'/admin/current',r=>{
+                if(r.code===200){
+                    $('#userName').text('欢迎，'+r.data.username);
+                    $('#displayName').text(r.data.username);
+                } else location.href='/login';
+            });
+        });
+
+        function changePwd(){
+            let old=$('#oldPwd').val(), n=$('#newPwd').val(), c=$('#confirmPwd').val();
+            if(!old||!n){showMsg('请填写所有字段','warning');return;}
+            if(n!==c){showMsg('两次新密码不一致','warning');return;}
+            if(n.length<6){showMsg('新密码至少6位','warning');return;}
+            $.ajax({url:API+'/admin/password',type:'PUT',contentType:'application/json',
+                data:JSON.stringify({oldPassword:old,newPassword:n}),
+                success:r=>{
+                    if(r.code===200){showMsg('密码修改成功！','success');$('#oldPwd,#newPwd,#confirmPwd').val('');}
+                    else showMsg(r.message,'danger');
+                }
+            });
+        }
+
+        function showMsg(msg,type){
+            $('#msgBox').removeClass('alert-success alert-warning alert-danger').addClass('alert-'+type).text(msg).show();
+            setTimeout(()=>$('#msgBox').hide(),3000);
+        }
+    </script>
+</body>
+</html>

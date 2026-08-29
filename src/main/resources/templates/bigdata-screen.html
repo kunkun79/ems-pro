@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大数据可视化大屏 - 企业管理系统 Pro</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #0a0e27; color: #fff; overflow: hidden;
+            width: 100vw; height: 100vh;
+        }
+        .header {
+            height: 60px; line-height: 60px; text-align: center;
+            background: linear-gradient(90deg, transparent, rgba(64,158,255,.15), transparent);
+            border-bottom: 1px solid rgba(64,158,255,.3);
+            font-size: 24px; font-weight: 700; letter-spacing: 6px;
+            position: relative;
+        }
+        .header .time { position: absolute; right: 30px; top: 0; font-size: 14px; color: #7ec8ff; letter-spacing: 2px; }
+        .container { display: grid; grid-template-columns: 280px 1fr 280px; grid-template-rows: 140px 1fr 1fr; gap: 12px; padding: 12px; height: calc(100vh - 60px); }
+        .panel {
+            background: rgba(16,22,57,.7); border: 1px solid rgba(64,158,255,.15);
+            border-radius: 6px; padding: 14px; position: relative; overflow: hidden;
+        }
+        .panel::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, #409eff, transparent);
+        }
+        .panel-title { font-size: 14px; color: #7ec8ff; margin-bottom: 10px; font-weight: 600; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-card {
+            background: rgba(64,158,255,.08); border-radius: 4px; padding: 12px;
+            text-align: center; border: 1px solid rgba(64,158,255,.1);
+        }
+        .stat-card .num { font-size: 28px; font-weight: 700; color: #409eff; }
+        .stat-card .label { font-size: 12px; color: #8899bb; margin-top: 4px; }
+        .chart-div { width: 100%; height: calc(100% - 30px); }
+        .pipeline {
+            display: flex; align-items: center; justify-content: center; gap: 0;
+            height: 50px; margin-top: 20px;
+        }
+        .pipe-node {
+            width: 100px; height: 44px; line-height: 44px; text-align: center;
+            background: linear-gradient(135deg, #1a237e, #283593); border-radius: 20px;
+            font-size: 13px; font-weight: 600; color: #fff;
+            border: 1px solid rgba(64,158,255,.3);
+        }
+        .pipe-node.active { background: linear-gradient(135deg, #0d47a1, #1565c0); border-color: #409eff; box-shadow: 0 0 12px rgba(64,158,255,.4); }
+        .pipe-arrow {
+            width: 40px; height: 2px; background: linear-gradient(90deg, #409eff, transparent);
+            position: relative;
+        }
+        .pipe-arrow::after {
+            content: '▶'; position: absolute; right: -4px; top: -8px; color: #409eff; font-size: 10px;
+        }
+        .hive-status { text-align: center; margin-top: 12px; font-size: 13px; }
+        .hive-status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .hive-status .dot.online { background: #00c853; box-shadow: 0 0 8px #00c853; }
+        .hive-status .dot.offline { background: #ff5252; }
+        .scroll-list { overflow-y: auto; max-height: calc(100% - 30px); font-size: 12px; }
+        .scroll-list .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.05); color: #aab; }
+        .scroll-list .row .date { color: #7ec8ff; }
+        .scroll-list .row .count { color: #00c853; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="header">
+    企业管理系统 Pro — 大数据可视化大屏
+    <span class="time" id="clock">--</span>
+</div>
+<div class="container">
+    <!-- 左1: ETL 管道状态 -->
+    <div class="panel" style="grid-row:1">
+        <div class="panel-title">⚙ ETL 管道</div>
+        <div class="pipeline">
+            <div class="pipe-node" id="node-mysql">MySQL</div>
+            <div class="pipe-arrow"></div>
+            <div class="pipe-node" id="node-extract">Extract</div>
+            <div class="pipe-arrow"></div>
+            <div class="pipe-node" id="node-transform">Transform</div>
+            <div class="pipe-arrow"></div>
+            <div class="pipe-node" id="node-load">Load</div>
+            <div class="pipe-arrow"></div>
+            <div class="pipe-node" id="node-hive">Hive</div>
+        </div>
+        <div class="hive-status"><span class="dot online"></span> <span id="hiveMode">模拟模式</span> | 分区: <span id="partition">--</span></div>
+        <div style="text-align:center;margin-top:12px">
+            <button onclick="runETL()" style="background:#1565c0;color:#fff;border:none;padding:6px 18px;border-radius:14px;cursor:pointer;font-size:12px">▶ 执行ETL</button>
+        </div>
+    </div>
+
+    <!-- 中部4个统计卡片 -->
+    <div class="panel" style="grid-column:2;grid-row:1">
+        <div class="stat-grid">
+            <div class="stat-card"><div class="num" id="s-emp">-</div><div class="label">员工总数</div></div>
+            <div class="stat-card"><div class="num" id="s-dept">-</div><div class="label">部门数量</div></div>
+            <div class="stat-card"><div class="num" id="s-salary">-</div><div class="label">平均薪资</div></div>
+            <div class="stat-card"><div class="num" id="s-hive">-</div><div class="label">Hive 记录数</div></div>
+        </div>
+    </div>
+
+    <!-- 右1: 操作趋势 -->
+    <div class="panel" style="grid-row:1">
+        <div class="panel-title">📊 操作趋势</div>
+        <div class="scroll-list" id="trendList"></div>
+    </div>
+
+    <!-- 左2: 部门效能 -->
+    <div class="panel" style="grid-row:2/4">
+        <div class="panel-title">🏢 部门效能</div>
+        <div class="chart-div" id="chartDept"></div>
+    </div>
+
+    <!-- 中2: 薪资区间 -->
+    <div class="panel" style="grid-column:2;grid-row:2">
+        <div class="panel-title">💰 薪资区间分布</div>
+        <div class="chart-div" id="chartSalary"></div>
+    </div>
+
+    <!-- 右2: 性别分布 -->
+    <div class="panel" style="grid-row:2">
+        <div class="panel-title">👥 性别分布</div>
+        <div class="chart-div" id="chartGender"></div>
+    </div>
+
+    <!-- 中3: 操作热力图 -->
+    <div class="panel" style="grid-column:2;grid-row:3">
+        <div class="panel-title">🔥 每小时操作热力图</div>
+        <div class="chart-div" id="chartHeatmap"></div>
+    </div>
+
+    <!-- 右3: 操作分布 -->
+    <div class="panel" style="grid-row:3">
+        <div class="panel-title">📋 操作类型分布</div>
+        <div class="chart-div" id="chartOpDist"></div>
+    </div>
+</div>
+
+<script>
+    const API = '/api';
+    let allCharts = [];
+
+    function initChart(id) {
+        let c = echarts.init(document.getElementById(id));
+        allCharts.push(c);
+        return c;
+    }
+
+    // 时钟
+    function tick() { $('#clock').text(new Date().toLocaleString('zh-CN')); }
+    setInterval(tick, 1000); tick();
+
+    // ETL 按钮
+    function runETL() {
+        $('#node-extract,#node-transform,#node-load,#node-hive').addClass('active');
+        $.ajax({ url: API + '/bigdata/etl/run', type: 'POST', contentType: 'application/json', data: '{}',
+            success: function(r) {
+            if (r.code === 200) {
+                $('#partition').text(r.data.loadPartition);
+                $('#node-extract,#node-transform,#node-load,#node-hive').removeClass('active');
+                loadStats();
+            }
+        }});
+    }
+
+    // 加载统计
+    function loadStats() {
+        $.get(API + '/bigdata/status', r => {
+            if (r.code === 200) {
+                $('#hiveMode').text(r.data.message.includes('真实') ? '真实Hive模式' : '模拟模式');
+                $('#node-hive').text(r.data.message.includes('真实') ? 'Hive(HDFS)' : 'Hive(模拟)');
+                $('.hive-status .dot').attr('class', 'dot ' + (r.data.message.includes('正常') ? 'online' : 'offline'));
+            }
+        });
+        $.get(API + '/employee/page?page=1&size=9999', r => {
+            if (r.code === 200) {
+                let emps = r.data.records;
+                $('#s-emp').text(emps.length);
+                let total = emps.reduce((s, e) => s + (e.salary || 0), 0);
+                $('#s-salary').text('¥' + (emps.length > 0 ? (total / emps.length).toFixed(0) : 0));
+            }
+        });
+        $.get(API + '/department', r => { if (r.code === 200) $('#s-dept').text(r.data.length); });
+        $.get(API + '/bigdata/status', r => { if (r.code === 200) $('#s-hive').text(r.data.hiveTables || 0); });
+    }
+
+    // 图表
+    function loadCharts() {
+        // 员工画像
+        $.get(API + '/analysis/employee/portrait', r => {
+            if (r.code !== 200) return;
+            let d = r.data;
+            initChart('chartGender').setOption({
+                tooltip: { trigger: 'item' }, backgroundColor: 'transparent',
+                series: [{
+                    type: 'pie', radius: ['40%', '68%'],
+                    data: d.genderDistribution,
+                    label: { color: '#aab', fontSize: 11 },
+                    itemStyle: { borderColor: '#0a0e27', borderWidth: 2 }
+                }]
+            });
+            initChart('chartSalary').setOption({
+                tooltip: { trigger: 'axis' }, backgroundColor: 'transparent',
+                grid: { left: 50, right: 20, top: 10, bottom: 25 },
+                xAxis: { type: 'category', data: d.salaryDistribution.map(i=>i.name), axisLabel: { color: '#aab', fontSize: 10, rotate: 15 }, axisLine: { lineStyle: { color: '#334' } } },
+                yAxis: { type: 'value', axisLabel: { color: '#aab', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
+                series: [{
+                    type: 'bar', data: d.salaryDistribution.map(i=>i.value),
+                    itemStyle: { borderRadius: [4,4,0,0],
+                        color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                            {offset:0,color:'#409eff'},{offset:1,color:'#0d47a1'}
+                        ])
+                    }, barWidth: '50%'
+                }]
+            });
+            initChart('chartDept').setOption({
+                tooltip: { trigger: 'axis' }, backgroundColor: 'transparent',
+                grid: { left: 45, right: 10, top: 10, bottom: 25 },
+                xAxis: { type: 'category', data: d.deptDistribution.map(i=>'部门'+i.deptId), axisLabel: { color: '#aab', fontSize: 9, rotate: 30 }, axisLine: { lineStyle: { color: '#334' } } },
+                yAxis: { type: 'value', axisLabel: { color: '#aab', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
+                series: [{
+                    type: 'bar', data: d.deptDistribution.map(i=>i.count),
+                    itemStyle: { borderRadius: [4,4,0,0], color: '#00c853' }, barWidth: '55%'
+                }]
+            });
+        });
+
+        // 操作分布
+        $.get(API + '/analysis/operation/distribution', r => {
+            if (r.code !== 200) return;
+            initChart('chartOpDist').setOption({
+                tooltip: { trigger: 'item' }, backgroundColor: 'transparent',
+                series: [{
+                    type: 'pie', radius: '65%', roseType: 'area',
+                    data: r.data, label: { color: '#aab', fontSize: 10 },
+                    itemStyle: { borderColor: '#0a0e27', borderWidth: 2 }
+                }]
+            });
+        });
+
+        // 操作热力图（每小时操作量）
+        $.get(API + '/analysis/operation/heatmap', r => {
+            if (r.code !== 200) return;
+            let hours = r.data.map(i=>i.hour + ':00');
+            let counts = r.data.map(i=>i.count);
+            initChart('chartHeatmap').setOption({
+                tooltip: { trigger: 'axis' }, backgroundColor: 'transparent',
+                grid: { left: 50, right: 20, top: 10, bottom: 25 },
+                xAxis: { type: 'category', data: hours, axisLabel: { color: '#aab', fontSize: 10 }, axisLine: { lineStyle: { color: '#334' } } },
+                yAxis: { type: 'value', axisLabel: { color: '#aab', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
+                series: [{
+                    type: 'line', data: counts, smooth: true,
+                    lineStyle: { color: '#409eff', width: 2 },
+                    itemStyle: { color: '#00c853' },
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
+                        {offset:0,color:'rgba(64,158,255,.3)'},{offset:1,color:'rgba(64,158,255,.02)'}
+                    ])}
+                }]
+            });
+        });
+
+        // 操作趋势
+        $.get(API + '/analysis/operation/trend', r => {
+            if (r.code !== 200) return;
+            let html = '';
+            r.data.slice(-8).reverse().forEach(d => {
+                html += '<div class="row"><span class="date">' + d.date + '</span><span class="count">' + d.count + ' 次</span></div>';
+            });
+            $('#trendList').html(html);
+        });
+    }
+
+    $(function() { loadStats(); loadCharts(); });
+    window.addEventListener('resize', () => allCharts.forEach(c => c.resize()));
+</script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部门管理 - 企业管理系统 Pro</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei',sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; min-height: 100vh; background: linear-gradient(180deg, #1a1a2e, #16213e); color: #fff; padding-top: 20px; flex-shrink: 0; }
+        .sidebar .logo { padding: 0 20px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sidebar a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255,255,255,.7); text-decoration: none; font-size: 15px; border-left: 3px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.08); border-left-color: #4361ee; }
+        .main { flex: 1; padding: 24px; overflow-y: auto; }
+        .top-bar { background: #fff; border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .content-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .dept-card {
+            border: 1px solid #e8e8e8; border-radius: 12px;
+            transition: all .3s; position: relative; overflow: hidden;
+        }
+        .dept-card:hover { border-color: #4361ee; box-shadow: 0 4px 15px rgba(67,97,238,.15); }
+        .dept-card-header { padding: 20px 20px 0; cursor: pointer; }
+        .dept-card .icon { font-size: 32px; margin-bottom: 8px; }
+        .dept-card h6 { font-weight: 700; margin-bottom: 4px; }
+        .dept-card .meta { font-size: 13px; color: #888; margin-bottom: 12px; }
+        .dept-card .actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; opacity: 0; transition: .2s; }
+        .dept-card:hover .actions { opacity: 1; }
+        .dept-card .toggle-bar {
+            background: #f8f9fa; padding: 9px 20px; font-size: 13px; color: #4361ee;
+            cursor: pointer; display: flex; align-items: center; gap: 6px;
+            border-top: 1px solid #eee; user-select: none;
+        }
+        .dept-card .toggle-bar:hover { background: #eef0ff; }
+        .dept-card .toggle-bar .arrow { transition: transform .3s; display: inline-block; }
+        .dept-card .toggle-bar.expanded .arrow { transform: rotate(90deg); }
+        .emp-list { display: none; background: #fafbfc; border-top: 1px solid #eee; }
+        .emp-list.show { display: block; }
+        .emp-item {
+            display: flex; align-items: center; padding: 10px 20px;
+            border-bottom: 1px solid #f0f0f0; font-size: 14px; gap: 12px;
+        }
+        .emp-item:last-child { border-bottom: none; }
+        .emp-item .emp-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 13px; flex-shrink: 0;
+        }
+        .emp-item .emp-info { flex: 1; min-width: 0; }
+        .emp-item .emp-name { font-weight: 600; }
+        .emp-item .emp-detail { color: #888; font-size: 12px; }
+        .emp-empty { padding: 16px 20px; color: #aaa; font-size: 13px; text-align: center; }
+        .emp-loading { padding: 16px 20px; color: #aaa; font-size: 13px; text-align: center; }
+
+        .table th { font-weight: 600; background: #f8f9fa; }
+        .table tr.dept-row { cursor: pointer; }
+        .table tr.dept-row:hover { background: #f0f3ff; }
+        .table tr.emp-sub-row { background: #fafbfc; display: none; }
+        .table tr.emp-sub-row.show { display: table-row; }
+        .table tr.emp-sub-row td { padding: 8px 12px 8px 48px; font-size: 13px; }
+        .emp-tag { display: inline-block; background: #eef0ff; color: #4361ee; border-radius: 4px; padding: 1px 8px; font-size: 12px; margin-right: 6px; }
+        .emp-tag.gender-male { background: #dbeafe; color: #1d4ed8; }
+        .emp-tag.gender-female { background: #fce7f3; color: #be185d; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">🚀 企业管理系统 Pro</div>
+        <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/employee"><i class="bi bi-people"></i> 员工管理</a>
+        <a href="/department" class="active"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/bigdata"><i class="bi bi-bar-chart"></i> 大数据分析</a>
+        <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
+        <a href="/admin"><i class="bi bi-person-gear"></i> 个人中心</a>
+    </nav>
+    <div class="main">
+        <div class="top-bar">
+            <h5 class="mb-0">🏢 部门管理</h5>
+            <div><span id="userName"></span> <button class="btn btn-outline-secondary btn-sm ms-2" onclick="logout()">退出</button></div>
+        </div>
+        <div class="content-card">
+            <div class="mb-3">
+                <button class="btn btn-success" onclick="showAddDept()"><i class="bi bi-plus-lg"></i> 新增部门</button>
+                <span class="text-muted ms-2" style="font-size:13px;">点击部门卡片或表格行查看该部门员工</span>
+            </div>
+            <div class="dept-grid" id="deptGrid"></div>
+            <div class="table-responsive mt-4">
+                <table class="table" id="deptTable">
+                    <thead><tr><th style="width:50px">ID</th><th>部门名称</th><th>办公地点</th><th>人数</th><th>创建时间</th><th style="width:120px">操作</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deptModal" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="dmodalTitle">新增部门</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="deptId">
+                <div class="mb-3"><label class="form-label">部门名称*</label><input class="form-control" id="deptName" required></div>
+                <div class="mb-3"><label class="form-label">办公地点</label><input class="form-control" id="deptLocation"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button class="btn btn-primary" onclick="saveDept()">保存</button>
+            </div>
+        </div></div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API='/api'; let dmodal;
+        function logout(){$.post('/api/logout',()=>location.href='/login');}
+        $(function(){
+            $.get(API+'/admin/current',r=>{if(r.code===200)$('#userName').text('欢迎，'+r.data.username);else location.href='/login';});
+            dmodal=new bootstrap.Modal('#deptModal'); loadDepts();
+        });
+
+        const deptEmojis = { '技术部':'💻', '市场部':'📈', '财务部':'💰', '人事部':'👔', '运营部':'⚙️', '产品部':'🎯', '客服部':'📞' };
+        const loadedDepts = {}; // 记录已加载过的部门，避免重复请求
+
+        function loadDepts(){
+            $.get(API+'/department',r=>{
+                if(r.code!==200)return;
+                let grid='',table='';
+                r.data.forEach((d,i)=>{
+                    let emoji = deptEmojis[d.name] || '🏢';
+                    grid+=`<div class="dept-card" id="dcard-${d.id}">
+                        <div class="actions">
+                            <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();editDept(${d.id},'${d.name}','${d.location||''}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();delDept(${d.id},'${d.name}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <div class="dept-card-header" onclick="toggleDeptEmp(${d.id})">
+                            <div class="icon">${emoji}</div>
+                            <h6>${d.name}</h6>
+                            <div class="meta">📍 ${d.location||'未设置'} · 👥 ${d.headCount||0}人</div>
+                        </div>
+                        <div class="toggle-bar" id="toggle-${d.id}" onclick="toggleDeptEmp(${d.id})">
+                            <span class="arrow">▶</span> 查看部门成员
+                        </div>
+                        <div class="emp-list" id="emplist-${d.id}"></div>
+                    </div>`;
+                    table+=`<tr class="dept-row" id="drow-${d.id}" onclick="toggleDeptEmp(${d.id})">
+                        <td>${d.id}</td><td>${d.name}</td><td>${d.location||'-'}</td><td>${d.headCount||0}</td><td>${d.createTime||'-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation();editDept(${d.id},'${d.name}','${d.location||''}')"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();delDept(${d.id},'${d.name}')"><i class="bi bi-trash"></i></button>
+                        </td>
+                    </tr>
+                    <tr class="emp-sub-row" id="emprole-${d.id}"><td colspan="6"><div class="emp-list-inline" id="emprole-list-${d.id}"></div></td></tr>`;
+                });
+                $('#deptGrid').html(grid); $('#deptTable tbody').html(table);
+            });
+        }
+
+        function toggleDeptEmp(deptId) {
+            let cardList = $('#emplist-'+deptId);
+            let toggle = $('#toggle-'+deptId);
+            let tableRow = $('#emprole-'+deptId);
+            let tableList = $('#emprole-list-'+deptId);
+
+            // 如果已经展开 → 收起
+            if (cardList.hasClass('show')) {
+                cardList.removeClass('show');
+                tableRow.removeClass('show');
+                toggle.removeClass('expanded');
+                toggle.find('.arrow').text('▶');
+                toggle.html('<span class="arrow">▶</span> 查看部门成员');
+                return;
+            }
+
+            // 如果已加载过 → 直接展开
+            if (loadedDepts[deptId]) {
+                cardList.html(loadedDepts[deptId]).addClass('show');
+                tableRow.addClass('show'); tableList.html(loadedDepts[deptId]);
+                toggle.addClass('expanded').find('.arrow').text('▼');
+                toggle.html('<span class="arrow">▼</span> 收起成员列表');
+                return;
+            }
+
+            // 首次加载
+            cardList.html('<div class="emp-loading">加载中...</div>').addClass('show');
+            tableRow.addClass('show'); tableList.html('<div class="emp-loading">加载中...</div>');
+            toggle.addClass('expanded').find('.arrow').text('▼');
+            toggle.html('<span class="arrow">▼</span> 收起成员列表');
+
+            $.get(API+'/employee/byDept/'+deptId, function(r) {
+                let html = '';
+                if (r.code === 200 && r.data && r.data.length > 0) {
+                    r.data.forEach(function(e) {
+                        let initial = e.name ? e.name.charAt(0) : '?';
+                        let genderTag = e.gender === '男'
+                            ? '<span class="emp-tag gender-male">男</span>'
+                            : '<span class="emp-tag gender-female">女</span>';
+                        html += '<div class="emp-item">'
+                            + '<div class="emp-avatar">' + initial + '</div>'
+                            + '<div class="emp-info">'
+                            + '<div class="emp-name">' + e.name + genderTag + '<span class="emp-tag">' + (e.age||'-') + '岁</span></div>'
+                            + '<div class="emp-detail">📱 ' + (e.phone||'-') + ' · 📧 ' + (e.email||'-') + ' · ' + (e.status||'-') + '</div>'
+                            + '</div></div>';
+                    });
+                } else {
+                    html = '<div class="emp-empty">该部门暂无员工</div>';
+                }
+                loadedDepts[deptId] = html;
+                cardList.html(html);
+                tableList.html(html);
+            }).fail(function() {
+                cardList.html('<div class="emp-empty">加载失败</div>');
+                tableList.html('<div class="emp-empty">加载失败</div>');
+            });
+        }
+
+        function showAddDept(){ $('#deptId').val(''); $('#deptName').val(''); $('#deptLocation').val(''); $('#dmodalTitle').text('新增部门'); dmodal.show(); }
+        function editDept(id,name,loc){ $('#deptId').val(id); $('#deptName').val(name); $('#deptLocation').val(loc); $('#dmodalTitle').text('编辑部门'); dmodal.show(); }
+
+        function saveDept(){
+            let data={name:$('#deptName').val(),location:$('#deptLocation').val()};
+            let id=$('#deptId').val();
+            if(id) data.id=parseInt(id);
+            $.ajax({url:API+'/department',type:id?'PUT':'POST',contentType:'application/json',data:JSON.stringify(data),
+                success:r=>{if(r.code===200){dmodal.hide();loadDepts();}else alert(r.message);}
+            });
+        }
+
+        function delDept(id,name){
+            if(!confirm('确定删除「'+name+'」？如果有员工属于该部门，需要先转移。'))return;
+            $.ajax({url:API+'/department/'+id,type:'DELETE',
+                success:r=>{if(r.code===200)loadDepts();else alert(r.message);}
+            });
+        }
+    </script>
+</body>
+</html>

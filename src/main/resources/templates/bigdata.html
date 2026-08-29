@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大数据分析 - 企业管理系统 Pro</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei',sans-serif; background: #0a0e27; color: #e0e0e0; display: flex; min-height: 100vh; }
+        /* 大屏深色主题 */
+        .sidebar { width: 220px; min-height: 100vh; background: rgba(16,20,50,.95); border-right: 1px solid rgba(67,97,238,.2); padding-top: 20px; flex-shrink: 0; }
+        .sidebar .logo { padding: 0 20px 20px; font-size: 16px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.08); color: #4361ee; }
+        .sidebar a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255,255,255,.6); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(67,97,238,.1); border-left-color: #4361ee; }
+        .main { flex: 1; padding: 24px; overflow-y: auto; }
+        .top-bar { background: rgba(16,20,50,.8); border: 1px solid rgba(67,97,238,.15); border-radius: 8px; padding: 16px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .top-bar h5 { color: #e0e0e0; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: rgba(16,20,50,.8); border: 1px solid rgba(67,97,238,.15);
+            border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 16px;
+        }
+        .stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .stat-val { font-size: 24px; font-weight: 700; color: #fff; }
+        .stat-label { font-size: 13px; color: #8892b0; }
+        .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .chart-box { background: rgba(16,20,50,.8); border: 1px solid rgba(67,97,238,.15); border-radius: 8px; padding: 20px; }
+        .chart-box h6 { color: #ccd6f6; margin-bottom: 12px; font-weight: 600; }
+        .chart-inner { width: 100%; height: 300px; }
+        .chart-full { width: 100%; height: 350px; }
+        .btn-outline { border: 1px solid #4361ee; color: #4361ee; background: transparent; border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; transition: .2s; }
+        .btn-outline:hover { background: #4361ee; color: #fff; }
+        .code-block {
+            background: rgba(0,0,0,.3); border: 1px solid rgba(67,97,238,.2);
+            border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace;
+            font-size: 13px; color: #64ffda; max-height: 280px; overflow-y: auto;
+            white-space: pre-wrap; margin-top: 12px;
+        }
+        @media (max-width: 768px) { .stats-row, .charts-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">⚡ 大数据分析平台</div>
+        <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/employee"><i class="bi bi-people"></i> 员工管理</a>
+        <a href="/department"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/bigdata" class="active"><i class="bi bi-bar-chart"></i> 大数据分析</a>
+        <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
+        <a href="/admin"><i class="bi bi-person-gear"></i> 个人中心</a>
+    </nav>
+    <div class="main">
+        <div class="top-bar">
+            <h5 class="mb-0">📊 大数据分析平台 · Hive + MapReduce 引擎</h5>
+            <div>
+                <button class="btn-outline me-2" onclick="runETL()"><i class="bi bi-database-down"></i> 执行ETL</button>
+                <button class="btn-outline me-2" onclick="runMapReduce()"><i class="bi bi-calculator"></i> MapReduce分析</button>
+                <span id="userName" style="color:#8892b0;"></span>
+                <button class="btn btn-outline-secondary btn-sm ms-2" onclick="logout()">退出</button>
+            </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-icon" style="background:linear-gradient(135deg,#4361ee,#3a0ca3)"><i class="bi bi-database"></i></div><div><div class="stat-val" id="etlCount">-</div><div class="stat-label">Hive 表数量</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:linear-gradient(135deg,#f72585,#b5179e)"><i class="bi bi-file-earmark-bar-graph"></i></div><div><div class="stat-val" id="hiveRows">-</div><div class="stat-label">数仓数据量</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:linear-gradient(135deg,#4cc9f0,#4895ef)"><i class="bi bi-cpu"></i></div><div><div class="stat-val" id="mrJobs">0</div><div class="stat-label">MapReduce 任务</div></div></div>
+            <div class="stat-card"><div class="stat-icon" style="background:linear-gradient(135deg,#06d6a0,#1b9aaa)"><i class="bi bi-check-circle"></i></div><div><div class="stat-val" id="engineStatus">正常</div><div class="stat-label">引擎状态</div></div></div>
+        </div>
+
+        <!-- 图表区 -->
+        <div class="charts-row">
+            <div class="chart-box"><h6>📈 每日操作趋势（折线图）</h6><div class="chart-inner" id="chartTrend"></div></div>
+            <div class="chart-box"><h6>⏰ 每小时操作热力（面积图）</h6><div class="chart-inner" id="chartHeatmap"></div></div>
+        </div>
+        <div class="charts-row">
+            <div class="chart-box"><h6>👥 员工画像分析</h6><div class="chart-inner" id="chartPortrait"></div></div>
+            <div class="chart-box"><h6>💰 薪资按部门汇总（MapReduce结果）</h6><div class="chart-inner" id="chartSalaryDept"></div></div>
+        </div>
+
+        <!-- 员工 MapReduce 统计分析区 -->
+        <div class="chart-box mb-3">
+            <h6>🔍 员工数据 MapReduce 统计分析</h6>
+            <p style="color:#8892b0;font-size:13px;margin-bottom:16px;">基于全量员工数据的 Map→Shuffle→Reduce 计算：薪资统计、年龄分析、薪资区间分布。点击按钮执行分析。</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="code-block" id="mrSalaryResult" style="min-height:140px;">
+╔══════════════════════════════╗
+║  点击「MapReduce分析」按钮   ║
+║  查看员工薪资和年龄统计结果  ║
+╚══════════════════════════════╝</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="code-block" id="mrAgeResult" style="min-height:140px;">
+╔══════════════════════════════╗
+║  分析结果将在这里展示         ║
+║  包含Map/Shuffle/Reduce过程  ║
+╚══════════════════════════════╝</div>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="chart-inner" id="chartMrSalary" style="height:280px;"></div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-inner" id="chartMrAge" style="height:280px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script>
+        const API='/api';
+        function logout(){$.post('/api/logout',()=>location.href='/login');}
+        $(function(){
+            $.get(API+'/admin/current',r=>{if(r.code===200)$('#userName').text('欢迎，'+r.data.username);else location.href='/login';});
+            loadAllCharts(); loadBigDataStatus();
+        });
+
+        function initChart(id,opts){let c=echarts.init(document.getElementById(id));c.setOption(opts);window.addEventListener('resize',()=>c.resize());return c;}
+
+        function loadAllCharts(){
+            // 操作趋势
+            $.get(API+'/analysis/operation/trend',r=>{
+                if(r.code!==200)return;
+                initChart('chartTrend',{
+                    tooltip:{trigger:'axis'},
+                    xAxis:{type:'category',data:r.data.map(d=>d.date),axisLabel:{color:'#8892b0'}},
+                    yAxis:{type:'value',axisLabel:{color:'#8892b0'}},
+                    series:[{type:'line',data:r.data.map(d=>d.count),smooth:true,
+                        lineStyle:{color:'#4361ee',width:3},
+                        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(67,97,238,.4)'},{offset:1,color:'rgba(67,97,238,0)'}])},
+                        itemStyle:{color:'#4361ee'}}]
+                });
+            });
+
+            // 小时热力
+            $.get(API+'/analysis/operation/heatmap',r=>{
+                if(r.code!==200)return;
+                let hours=[],counts=[];
+                r.data.forEach(d=>{hours.push(d.hour+'点');counts.push(d.count);});
+                initChart('chartHeatmap',{
+                    tooltip:{trigger:'axis'},
+                    xAxis:{type:'category',data:hours,axisLabel:{color:'#8892b0',rotate:30}},
+                    yAxis:{type:'value',axisLabel:{color:'#8892b0'}},
+                    series:[{type:'bar',data:counts,
+                        itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#4cc9f0'},{offset:1,color:'#4895ef'}])},
+                        barWidth:'60%'}]
+                });
+            });
+
+            // 员工画像
+            $.get(API+'/analysis/employee/portrait',r=>{
+                if(r.code!==200)return;
+                initChart('chartPortrait',{
+                    tooltip:{trigger:'item'},
+                    series:[{type:'pie',radius:['40%','65%'],center:['50%','55%'],
+                        data:r.data.genderDistribution,
+                        label:{color:'#8892b0'},
+                        itemStyle:{borderColor:'#0a0e27',borderWidth:2}
+                    }]
+                });
+            });
+
+            // 薪资按部门（MapReduce）
+            $.get(API+'/bigdata/mapreduce/salary-by-dept',r=>{
+                if(r.code!==200)return;
+                let depts=[],vals=[];
+                Object.entries(r.data).forEach(([k,v])=>{depts.push('部门'+k);vals.push(v);});
+                initChart('chartSalaryDept',{
+                    tooltip:{trigger:'axis',formatter:p=>p[0].name+'<br/>总薪资：¥'+p[0].value.toFixed(0)},
+                    xAxis:{type:'category',data:depts,axisLabel:{color:'#8892b0',rotate:20}},
+                    yAxis:{type:'value',axisLabel:{color:'#8892b0'}},
+                    series:[{type:'bar',data:vals,
+                        itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#f72585'},{offset:1,color:'#b5179e'}])},
+                        barWidth:'55%'}]
+                });
+            });
+        }
+
+        function loadBigDataStatus(){
+            $.get(API+'/bigdata/status',r=>{if(r.code===200){$('#engineStatus').text(r.data.message.includes('正常')?'正常':'异常');}});
+            $.get(API+'/bigdata/hive/tables',r=>{
+                if(r.code===200){
+                    $('#etlCount').text(r.data.tables?r.data.tables.length:0);
+                }
+            });
+        }
+
+        // ETL 执行
+        function runETL(){
+            $('#engineStatus').text('执行中...');
+            $.ajax({url:API+'/bigdata/etl/run',type:'POST',success:r=>{
+                $('#engineStatus').text('正常');
+                $('#hiveRows').text(r.data.loadCount+'条');
+                alert('ETL完成！\n抽取：'+r.data.extractCount+'条\n清洗：'+r.data.cleanedFields+'个字段\n加载分区：'+r.data.loadPartition);
+                loadAllCharts(); loadBigDataStatus();
+            }});
+        }
+
+        // MapReduce 员工数据分析（薪资统计 + 年龄统计）
+        function runMapReduce(){
+            $('#mrJobs').text(parseInt($('#mrJobs').text())+2);
+            $('#mrSalaryResult').text('🔄 MapReduce 计算中...\nPhase 1: Map → Phase 2: Shuffle → Phase 3: Reduce');
+            $('#mrAgeResult').text('🔄 MapReduce 计算中...');
+
+            // 请求 1：薪资按部门汇总
+            $.get(API+'/bigdata/mapreduce/salary-by-dept', function(sr){
+                if(sr.code!==200) return;
+                let entries=Object.entries(sr.data).sort((a,b)=>b[1]-a[1]);
+                // 构建 MapReduce 过程日志
+                let log='=== MapReduce 薪资按部门汇总 ===\n\n';
+                log+='[Map]    员工数据 → (部门ID, 薪资) 键值对\n';
+                log+='[Shuffle] 按部门ID分组 → 同部门薪资聚合\n';
+                log+='[Reduce]  各分组求和 → 各部门薪资总额\n\n';
+                log+='部门ID'.padEnd(10)+'总薪资'.padEnd(14)+'柱状图\n';
+                log+='─'.repeat(52)+'\n';
+                entries.forEach(([k,v])=>{
+                    let bar='█'.repeat(Math.min(Math.round(v/5000),30));
+                    log+=('部门 '+k.padEnd(6)).padEnd(12)+('¥'+v.toFixed(0)).padEnd(14)+bar+'\n';
+                });
+                let total=entries.reduce((s,e)=>s+e[1],0);
+                let maxDept=entries[0];
+                log+='\n📊 全公司薪资总额：¥'+total.toFixed(0)+'\n';
+                log+='🏆 薪资最高部门：部门'+maxDept[0]+'（¥'+maxDept[1].toFixed(0)+'）\n';
+                log+='📋 涉及部门数：'+entries.length;
+                $('#mrSalaryResult').text(log);
+
+                // 柱状图
+                initChart('chartMrSalary',{
+                    tooltip:{trigger:'axis',formatter:p=>p[0].name+'<br/>总薪资：¥'+p[0].value.toFixed(0)},
+                    xAxis:{type:'category',data:entries.map(e=>'部门'+e[0]),axisLabel:{color:'#8892b0',rotate:20}},
+                    yAxis:{type:'value',axisLabel:{color:'#8892b0'}},
+                    series:[{type:'bar',data:entries.map(e=>e[1]),
+                        itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#f72585'},{offset:1,color:'#7209b7'}])},
+                        barWidth:'55%'}]
+                });
+            });
+
+            // 请求 2：平均年龄按部门
+            $.get(API+'/bigdata/mapreduce/avg-age-by-dept', function(ar){
+                if(ar.code!==200) return;
+                let entries=Object.entries(ar.data).sort((a,b)=>b[1]-a[1]);
+                let log='=== MapReduce 平均年龄按部门 ===\n\n';
+                log+='[Map]    员工数据 → (部门ID, 年龄) 键值对\n';
+                log+='[Shuffle] 按部门ID分组 → 同龄员工聚合\n';
+                log+='[Reduce]  各分组求均值 → 部门平均年龄\n\n';
+                log+='部门ID'.padEnd(10)+'平均年龄'.padEnd(12)+'柱状图\n';
+                log+='─'.repeat(46)+'\n';
+                entries.forEach(([k,v])=>{
+                    let bar='█'.repeat(Math.min(Math.round(v/2),30));
+                    log+=('部门 '+k.padEnd(6)).padEnd(12)+(v+'岁').padEnd(12)+bar+'\n';
+                });
+                let totalAge=entries.reduce((s,e)=>s+e[1],0);
+                let avg=entries.length>0?(totalAge/entries.length).toFixed(1):0;
+                let maxDept=entries[0]; let minDept=entries[entries.length-1];
+                log+='\n📊 全公司部门平均年龄：'+avg+'岁\n';
+                log+='🏆 年龄最高部门：部门'+maxDept[0]+'（'+maxDept[1]+'岁）\n';
+                log+='🌱 年龄最低部门：部门'+minDept[0]+'（'+minDept[1]+'岁）\n';
+                log+='📋 涉及部门数：'+entries.length;
+                $('#mrAgeResult').text(log);
+
+                // 柱状图
+                initChart('chartMrAge',{
+                    tooltip:{trigger:'axis',formatter:p=>p[0].name+'<br/>平均年龄：'+p[0].value+'岁'},
+                    xAxis:{type:'category',data:entries.map(e=>'部门'+e[0]),axisLabel:{color:'#8892b0',rotate:20}},
+                    yAxis:{type:'value',axisLabel:{color:'#8892b0'}},
+                    series:[{type:'bar',data:entries.map(e=>e[1]),
+                        itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#06d6a0'},{offset:1,color:'#1b9aaa'}])},
+                        barWidth:'55%'}]
+                });
+            });
+        }
+    </script>
+</body>
+</html>

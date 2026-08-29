@@ -1,0 +1,114 @@
+# ==========================================
+#  企业管理系统 Pro — 主配置文件
+#  开发环境：H2内存数据库，启动即用
+#  生产环境：取消MySQL注释即可切换
+# ==========================================
+
+server:
+  port: 9090
+  error:
+    include-message: always
+    include-binding-errors: always
+  # ========== **关键！** 强制所有请求/响应使用UTF-8，解决中文乱码 ==========
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true         # force=true 覆盖所有请求，即使是ISO-8859-1也会被强制转UTF-8
+
+spring:
+  # ========== 激活的配置环境：dev（开发）/ prod（生产） ==========
+  profiles:
+    active: prod
+
+  # ========== 国际化消息编码 ==========
+  messages:
+    encoding: UTF-8
+
+  # ========== Thymeleaf 模板配置 ==========
+  thymeleaf:
+    cache: false           # 开发时关闭缓存，改模板立即生效
+    prefix: classpath:/templates/
+    suffix: .html
+    encoding: UTF-8
+    mode: HTML             # 模板模式
+    servlet:
+      content-type: text/html; charset=UTF-8
+
+  # ========== H2 控制台（开发时可浏览器访问 /h2-console 查看数据） ==========
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# ========== 大数据模块配置 ==========
+bigdata:
+  # 运行模式：simulator(本地文件模拟，无需外部依赖) | real(连接真实HiveServer2)
+  mode: simulator
+  # 定时ETL调度（默认关闭，生产环境可设为 true）
+  scheduler:
+    enabled: false
+  # 真实 Hive 连接配置（仅在 mode=real 时生效）
+  hive:
+    jdbc-url: jdbc:hive2://localhost:10000/default
+    username: hive
+    password:
+
+---
+# ========== 开发环境配置 ==========
+server:
+  port: 9090
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:ems_pro;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  sql:
+    init:
+      mode: always                    # 每次启动都初始化数据库
+      encoding: UTF-8                 # SQL文件编码
+      schema-locations: classpath:sql/schema-h2.sql
+      data-locations: classpath:sql/data-h2.sql
+
+  # Jackson JSON 序列化（保证返回的JSON中文不变成?????）
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # 开发时打印SQL
+    map-underscore-to-camel-case: true                       # 下划线转驼峰
+
+---
+# ========== 生产环境配置（取消下面注释并切换 spring.profiles.active=prod 即可启用） ==========
+server:
+  port: 9090
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/ems_pro?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 123456
+
+  sql:
+    init:
+      mode: never
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl   # 生产环境不打印SQL
+    map-underscore-to-camel-case: true

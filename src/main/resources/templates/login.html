@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 企业管理系统 Pro</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            height: 100vh; overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+        /* 粒子背景 */
+        canvas { position: fixed; top: 0; left: 0; z-index: 0; }
+        /* 登录卡片 */
+        .login-wrapper {
+            position: relative; z-index: 1;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh;
+        }
+        .login-card {
+            background: rgba(255,255,255,.95); border-radius: 20px;
+            padding: 48px 40px; width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.3);
+            backdrop-filter: blur(10px);
+        }
+        .login-card h2 {
+            text-align: center; margin-bottom: 8px; font-weight: 700;
+            color: #1a1a2e;
+        }
+        .login-card .subtitle { text-align: center; color: #888; margin-bottom: 32px; font-size: 14px; }
+        .form-control {
+            border-radius: 10px; padding: 12px 16px; border: 1px solid #e0e0e0;
+            font-size: 15px; transition: all .3s;
+        }
+        .form-control:focus { border-color: #4361ee; box-shadow: 0 0 0 3px rgba(67,97,238,.15); }
+        .btn-login {
+            width: 100%; padding: 12px; border-radius: 10px;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            border: none; font-size: 16px; font-weight: 600;
+            color: #fff; transition: all .3s; margin-top: 20px;
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(67,97,238,.4); }
+        .error-msg { color: #e74c3c; text-align: center; margin-top: 12px; font-size: 14px; display: none; }
+        .login-hint { text-align: center; margin-top: 16px; font-size: 12px; color: #aaa; }
+        .tech-stack {
+            text-align: center; margin-top: 32px;
+            display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;
+        }
+        .tech-tag {
+            font-size: 11px; color: #aaa; padding: 3px 10px;
+            border: 1px solid #eee; border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+    <div class="login-wrapper">
+        <div class="login-card">
+            <h2>🚀 企业管理系统 Pro</h2>
+            <p class="subtitle">统一登录入口 — 自动识别管理员 / 员工身份</p>
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" placeholder="管理员输入 admin，员工输入注册用户名" value="admin">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" placeholder="请输入密码" value="123456">
+                </div>
+                <button type="submit" class="btn btn-login">登 录</button>
+                <div class="error-msg" id="errorMsg"></div>
+            </form>
+            <div class="login-hint">admin 账号进入管理后台 | 其他用户名进入员工门户</div>
+            <div class="tech-stack">
+                <span class="tech-tag">Spring Boot 3.3</span>
+                <span class="tech-tag">MyBatis Plus</span>
+                <span class="tech-tag">H2/MySQL</span>
+                <span class="tech-tag">Hive 模拟</span>
+                <span class="tech-tag">MapReduce</span>
+                <span class="tech-tag">ECharts</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <!-- 粒子动画 -->
+    <script>
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        class Particle {
+            constructor() {
+                this.reset();
+                this.y = Math.random() * canvas.height;
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = -10;
+                this.size = Math.random() * 2 + 1;
+                this.speed = Math.random() * 1 + 0.3;
+                this.opacity = Math.random() * 0.6 + 0.2;
+            }
+            update() {
+                this.y += this.speed;
+                if (this.y > canvas.height + 10) this.reset();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(67, 97, 238, ${this.opacity})`;
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 80; i++) particles.push(new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            // 连线
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(67, 97, 238, ${0.15 * (1 - dist / 120)})`;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+
+    <!-- 登录逻辑 -->
+    <script>
+        $('#loginForm').on('submit', function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: '/api/login',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    username: $('#username').val(),
+                    password: $('#password').val()
+                }),
+                success: function(res) {
+                    if (res.code === 200) {
+                        // 根据角色跳转不同系统
+                        window.location.href = res.data.redirect;
+                    } else {
+                        $('#errorMsg').text(res.message).show();
+                    }
+                },
+                error: function() {
+                    $('#errorMsg').text('网络错误，请重试').show();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

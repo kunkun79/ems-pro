@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>员工管理 - 企业管理系统 Pro</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei',sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
+        .sidebar { width: 240px; min-height: 100vh; background: linear-gradient(180deg, #1a1a2e, #16213e); color: #fff; padding-top: 20px; }
+        .sidebar .logo { padding: 0 20px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sidebar a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255,255,255,.7); text-decoration: none; font-size: 15px; border-left: 3px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.08); border-left-color: #4361ee; }
+        .main { flex: 1; padding: 24px; }
+        .top-bar { background: #fff; border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .content-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .search-row { display: flex; gap: 12px; margin-bottom: 20px; }
+        .search-row input { max-width: 300px; }
+        .table th { font-weight: 600; background: #f8f9fa; }
+        .badge-status { font-size: 12px; padding: 4px 10px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">🚀 企业管理系统 Pro</div>
+        <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/employee" class="active"><i class="bi bi-people"></i> 员工管理</a>
+        <a href="/department"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/bigdata"><i class="bi bi-bar-chart"></i> 大数据分析</a>
+        <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
+        <a href="/admin"><i class="bi bi-person-gear"></i> 个人中心</a>
+    </nav>
+    <div class="main">
+        <div class="top-bar">
+            <h5 class="mb-0">👥 员工管理</h5>
+            <div><span id="userName"></span> <button class="btn btn-outline-secondary btn-sm ms-2" onclick="logout()">退出</button></div>
+        </div>
+        <div class="content-card">
+            <div class="search-row">
+                <input type="text" class="form-control" id="keyword" placeholder="搜索姓名..." onkeyup="if(event.key==='Enter')searchEmp()">
+                <button class="btn btn-primary" onclick="searchEmp()"><i class="bi bi-search"></i> 搜索</button>
+                <div class="ms-auto">
+                    <button class="btn btn-success" onclick="showAddModal()"><i class="bi bi-plus-lg"></i> 新增员工</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr><th>ID</th><th>姓名</th><th>部门</th><th>性别</th><th>年龄</th><th>电话</th><th>薪资</th><th>状态</th><th>操作</th></tr>
+                    </thead>
+                    <tbody id="empTable"></tbody>
+                </table>
+            </div>
+            <nav><ul class="pagination justify-content-center" id="pagination"></ul></nav>
+        </div>
+    </div>
+
+    <!-- 编辑/新增模态框 -->
+    <div class="modal fade" id="empModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title" id="modalTitle">新增员工</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <form id="empForm">
+                        <input type="hidden" id="empId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3"><label class="form-label">姓名*</label><input class="form-control" id="empName" required></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">部门*</label><select class="form-control" id="empDept"></select></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">性别</label><select class="form-control" id="empGender"><option>男</option><option>女</option></select></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">年龄</label><input type="number" class="form-control" id="empAge"></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">电话</label><input class="form-control" id="empPhone"></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">邮箱</label><input type="email" class="form-control" id="empEmail"></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">薪资</label><input type="number" step="0.01" class="form-control" id="empSalary"></div>
+                            <div class="col-md-6 mb-3"><label class="form-label">入职日期</label><input type="date" class="form-control" id="empEntryDate"></div>
+                            <div class="col-12 mb-3"><label class="form-label">地址</label><input class="form-control" id="empAddress"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button class="btn btn-primary" onclick="saveEmp()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API = '/api'; let currentPage = 1, modal;
+        function logout() { $.post('/api/logout',()=>location.href='/login'); }
+        $(function(){
+            $.get(API+'/admin/current',r=>{if(r.code===200)$('#userName').text('欢迎，'+r.data.username);else location.href='/login';});
+            modal = new bootstrap.Modal('#empModal');
+            loadEmps();
+        });
+
+        function loadEmps(page=1) {
+            currentPage = page;
+            let kw = $('#keyword').val();
+            $.get(API+'/employee/page?page='+page+'&size=10'+(kw?'&keyword='+kw:''), r => {
+                if(r.code!==200) return;
+                let html = '';
+                r.data.records.forEach(e => {
+                    html += `<tr>
+                        <td>${e.id}</td><td>${e.name}</td><td>${e.deptName||'-'}</td>
+                        <td>${e.gender||'-'}</td><td>${e.age||'-'}</td><td>${e.phone||'-'}</td>
+                        <td>${e.salary?'¥'+e.salary:'-'}</td>
+                        <td><span class="badge-status ${e.status==='在职'?'bg-success':'bg-secondary'}">${e.status||'在职'}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editEmp(${e.id})"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="delEmp(${e.id},'${e.name}')"><i class="bi bi-trash"></i></button>
+                        </td></tr>`;
+                });
+                $('#empTable').html(html);
+                let pages = Math.ceil(r.data.total / 10);
+                let phtml = '';
+                for(let i=1; i<=pages; i++) phtml += `<li class="page-item ${i===page?'active':''}"><a class="page-link" href="#" onclick="loadEmps(${i})">${i}</a></li>`;
+                $('#pagination').html(phtml);
+            });
+        }
+        function searchEmp() { loadEmps(1); }
+        function showAddModal() {
+            $('#empId').val(''); $('#empForm')[0].reset(); $('#modalTitle').text('新增员工');
+            $.get(API+'/department', r => {
+                let opts = '<option value="">请选择</option>';
+                r.data.forEach(d => opts += `<option value="${d.id}">${d.name}</option>`);
+                $('#empDept').html(opts);
+            });
+            modal.show();
+        }
+        function editEmp(id) {
+            $.get(API+'/employee/'+id, r => {
+                if(r.code!==200) return alert('查询失败');
+                let e = r.data;
+                $('#empId').val(e.id); $('#empName').val(e.name); $('#empDept').val(e.deptId);
+                $('#empGender').val(e.gender); $('#empAge').val(e.age); $('#empPhone').val(e.phone);
+                $('#empEmail').val(e.email); $('#empSalary').val(e.salary); $('#empEntryDate').val(e.entryDate);
+                $('#empAddress').val(e.address); $('#modalTitle').text('编辑员工');
+                $.get(API+'/department', r2 => {
+                    let opts = '<option value="">请选择</option>';
+                    r2.data.forEach(d => opts += `<option value="${d.id}" ${d.id===e.deptId?'selected':''}>${d.name}</option>`);
+                    $('#empDept').html(opts);
+                });
+                modal.show();
+            });
+        }
+        function saveEmp() {
+            let id = $('#empId').val();
+            let data = {
+                name: $('#empName').val(), deptId: $('#empDept').val()||null,
+                gender: $('#empGender').val(), age: $('#empAge').val()||null,
+                phone: $('#empPhone').val(), email: $('#empEmail').val(),
+                salary: $('#empSalary').val()||null, entryDate: $('#empEntryDate').val()||null,
+                address: $('#empAddress').val()
+            };
+            if(!id) { data.status = '在职'; } else { data.id = parseInt(id); }
+            // 编辑时不覆盖 status，保存原有状态（如"离职"）
+            let method = id ? 'PUT' : 'POST';
+            $.ajax({ url: API+'/employee', method, contentType:'application/json', data: JSON.stringify(data),
+                success: r => { if(r.code===200){ modal.hide(); loadEmps(currentPage); } else alert(r.message); }
+            });
+        }
+        function delEmp(id, name) {
+            if(!confirm('确定删除员工「'+name+'」？此操作不可恢复！')) return;
+            $.ajax({ url: API+'/employee/'+id, type:'DELETE',
+                success: r => { if(r.code===200) loadEmps(currentPage); else alert(r.message); }
+            });
+        }
+    </script>
+</body>
+</html>
