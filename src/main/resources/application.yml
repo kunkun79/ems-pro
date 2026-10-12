@@ -6,6 +6,11 @@
 
 server:
   port: 9090
+  # ========== 开启 gzip：echarts.min.js 1MB 可压到约 300KB ==========
+  compression:
+    enabled: true
+    min-response-size: 1024
+    # 不指定 mime-types：Spring Boot 默认已含 text/javascript、text/css、application/json 等
   error:
     include-message: always
     include-binding-errors: always
@@ -35,6 +40,16 @@ spring:
     servlet:
       content-type: text/html; charset=UTF-8
 
+  # ========== 静态资源（echarts / bootstrap / jquery 已本地化到 static/vendor） ==========
+  # 作用：页面切换时浏览器直接走本地缓存，不再回源，也不依赖外网 CDN
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 604800      # 7 天
+          cache-public: true
+        use-last-modified: true
+
   # ========== H2 控制台（开发时可浏览器访问 /h2-console 查看数据） ==========
   h2:
     console:
@@ -48,11 +63,40 @@ bigdata:
   # 定时ETL调度（默认关闭，生产环境可设为 true）
   scheduler:
     enabled: false
+  # ETL 批处理参数
+  etl:
+    # 每次读取并写入 Hive 的行数（数据量大时调大可减少往返次数）
+    batch-size: 2000
   # 真实 Hive 连接配置（仅在 mode=real 时生效）
   hive:
     jdbc-url: jdbc:hive2://localhost:10000/default
     username: hive
     password:
+  # ========== MapReduce 作业配置 ==========
+  mr:
+    # 运行框架：local=本机 LocalJobRunner（不依赖集群，用于验证逻辑）
+    #           yarn =提交到 YARN 集群（论文性能对比实验必须用这个）
+    framework: local
+    # 默认文件系统：本地用 file:///，接集群改为 hdfs://localhost:9000
+    fs-default-fs: file:///
+    # YARN ResourceManager 主机名（framework=yarn 时生效）
+    yarn-rm-hostname: localhost
+    # MR 输入/输出目录（支持 file:/// 与 hdfs:// 前缀）
+    input-dir: ./data/mr/input
+    output-dir: ./data/mr/output
+    # 默认 Reduce 任务数（决定输出文件分片数与并行度）
+    reduces: 2
+    # 部门 TopN 默认取前几名
+    topn: 10
+    # 导出输入时的数据库分批读取条数
+    batch-size: 5000
+  # ========== 集群监控地址（大屏读取 HDFS / YARN 实时指标用） ==========
+  # 需先 docker-compose up -d 启动集群，并把 bigdata.mode 切到 real
+  cluster:
+    # NameNode Web UI，大屏从这里读 HDFS 容量与节点数
+    namenode-ui: http://localhost:9870
+    # ResourceManager Web UI，大屏从这里读 YARN 容器与内存使用
+    rm-ui: http://localhost:8088
 
 ---
 # ========== 开发环境配置 ==========
@@ -101,8 +145,10 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/ems_pro?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 123456
+    username: ${DB_USERNAME:root}
+    # 密码支持环境变量覆盖：export DB_PASSWORD=你的密码
+    # 默认值仅为本地开发便利，部署时请通过环境变量注入真实密码
+    password: ${DB_PASSWORD:123456}
 
   sql:
     init:

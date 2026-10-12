@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>个人中心 - 企业管理系统 Pro</title>
-    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Microsoft YaHei',sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
@@ -32,6 +32,7 @@
         <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
         <a href="/employee"><i class="bi bi-people"></i> 员工管理</a>
         <a href="/department"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/efficiency"><i class="bi bi-graph-up-arrow"></i> 效能可视化</a>
         <a href="/bigdata"><i class="bi bi-bar-chart"></i> 大数据分析</a>
         <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
         <a href="/admin" class="active"><i class="bi bi-person-gear"></i> 个人中心</a>
@@ -54,7 +55,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="/vendor/jquery.min.js"></script>
     <script>
         const API='/api';
         function logout(){$.post('/api/logout',()=>location.href='/login');}

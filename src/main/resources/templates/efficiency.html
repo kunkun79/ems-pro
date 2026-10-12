@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>效能数据可视化 - 企业管理系统 Pro</title>
+    <link href="/vendor/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap-icons.min.css" rel="stylesheet">
+    <script src="/vendor/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 240px; min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff; flex-shrink: 0; padding-top: 20px;
+        }
+        .sidebar .logo { padding: 0 20px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sidebar a {
+            display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+            color: rgba(255,255,255,.7); text-decoration: none; font-size: 15px;
+            border-left: 3px solid transparent; transition: all .2s;
+        }
+        .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.08); border-left-color: #4361ee; }
+        .main { flex: 1; padding: 24px; overflow-y: auto; }
+        .top-bar {
+            background: #fff; border-radius: 12px; padding: 16px 24px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+        }
+        .filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .range-tip { font-size: 13px; color: #8a94a6; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+        .stat-card {
+            background: #fff; border-radius: 12px; padding: 18px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06); display: flex; align-items: center; gap: 14px;
+        }
+        .stat-icon { width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; flex-shrink: 0; }
+        .stat-val { font-size: 24px; font-weight: 700; line-height: 1.1; }
+        .stat-label { font-size: 13px; color: #8a94a6; margin-top: 2px; }
+        .chart-box { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 20px; }
+        .chart-box h5 { margin-bottom: 4px; font-weight: 600; font-size: 16px; }
+        .chart-box .sub { font-size: 12px; color: #8a94a6; margin-bottom: 12px; }
+        .chart-inner { width: 100%; height: 320px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-2 .chart-box { margin-bottom: 20px; }
+        .rank-table { font-size: 14px; }
+        .rank-table th { color: #8a94a6; font-weight: 600; }
+        .badge-soft { padding: 2px 8px; border-radius: 10px; font-size: 12px; background: #eef2ff; color: #4361ee; }
+        .loading-mask { display: flex; align-items: center; justify-content: center; height: 100%; color: #b6bdc9; font-size: 14px; }
+        @media (max-width: 1200px) { .stats, .grid-2 { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 768px) { .stats, .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">🚀 企业管理系统 Pro</div>
+        <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+        <a href="/employee"><i class="bi bi-people"></i> 员工管理</a>
+        <a href="/department"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/efficiency" class="active"><i class="bi bi-graph-up-arrow"></i> 效能可视化</a>
+        <a href="/bigdata"><i class="bi bi-bar-chart"></i> 大数据分析</a>
+        <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
+        <a href="/admin"><i class="bi bi-person-gear"></i> 个人中心</a>
+    </nav>
+    <div class="main">
+        <div class="top-bar">
+            <div>
+                <h5 class="mb-1">📈 员工效能数据可视化</h5>
+                <div class="range-tip" id="rangeTip">数据加载中…</div>
+            </div>
+            <div class="filter-bar">
+                <select class="form-select form-select-sm" id="deptSelect" style="width: 160px;">
+                    <option value="">全公司</option>
+                </select>
+                <button class="btn btn-sm btn-primary" onclick="loadAll()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="logout()">退出</button>
+            </div>
+        </div>
+
+        <!-- 总览卡片 -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#4361ee,#3a0ca3);"><i class="bi bi-people"></i></div>
+                <div><div class="stat-val" id="vEmp">-</div><div class="stat-label">在册员工</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#4cc9f0,#4895ef);"><i class="bi bi-calendar-check"></i></div>
+                <div><div class="stat-val" id="vAtt">-</div><div class="stat-label">考勤记录</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#f72585,#b5179e);"><i class="bi bi-list-task"></i></div>
+                <div><div class="stat-val" id="vTask">-</div><div class="stat-label">任务工单</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#06d6a0,#1b9aaa);"><i class="bi bi-award"></i></div>
+                <div><div class="stat-val" id="vPerf">-</div><div class="stat-label">绩效记录</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#fb8500,#ffb703);"><i class="bi bi-percent"></i></div>
+                <div><div class="stat-val" id="vAttRate">-</div><div class="stat-label">平均出勤率</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#7209b7,#560bad);"><i class="bi bi-check2-circle"></i></div>
+                <div><div class="stat-val" id="vDone">-</div><div class="stat-label">任务完工率</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#2a9d8f,#218380);"><i class="bi bi-star"></i></div>
+                <div><div class="stat-val" id="vKpi">-</div><div class="stat-label">平均 KPI</div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg,#e63946,#c1121f);"><i class="bi bi-shield-check"></i></div>
+                <div><div class="stat-val" id="vQuality">-</div><div class="stat-label">平均质量分</div></div>
+            </div>
+        </div>
+
+        <!-- 月度趋势 -->
+        <div class="chart-box">
+            <h5>📊 月度效能趋势</h5>
+            <div class="sub">出勤率 / 完工率 / KPI / 优秀率 的 12 个月走势，柱状为当月人均加班小时</div>
+            <div class="chart-inner" id="cTrend"><div class="loading-mask">加载中…</div></div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-box">
+                <h5>🏢 部门效能排行</h5>
+                <div class="sub">综合效能指数 = 0.30×完工率 + 0.25×KPI + 0.20×出勤率 + 0.15×准时率 + 0.10×质量分（全公司口径）</div>
+                <div class="chart-inner" id="cDept"><div class="loading-mask">加载中…</div></div>
+            </div>
+            <div class="chart-box">
+                <h5>🎯 绩效等级分布</h5>
+                <div class="sub">S / A / B / C / D 五档占比</div>
+                <div class="chart-inner" id="cGrade"><div class="loading-mask">加载中…</div></div>
+            </div>
+        </div>
+
+        <!-- 热力图 -->
+        <div class="chart-box">
+            <h5>🔥 部门 × 月份 出勤率热力图</h5>
+            <div class="sub">横轴为月份，纵轴为部门，颜色越深代表当月出勤率越高</div>
+            <div class="chart-inner" id="cHeat" style="height: 420px;"><div class="loading-mask">加载中…</div></div>
+        </div>
+
+        <div class="grid-2">
+            <div class="chart-box">
+                <h5>🧩 任务类型完成情况</h5>
+                <div class="sub">柱：完工率；折线：平均质量分（百分制）</div>
+                <div class="chart-inner" id="cTaskType"><div class="loading-mask">加载中…</div></div>
+            </div>
+            <div class="chart-box">
+                <h5>🕒 考勤状态构成</h5>
+                <div class="sub">正常出勤与各类假勤的占比</div>
+                <div class="chart-inner" id="cLeave"><div class="loading-mask">加载中…</div></div>
+            </div>
+        </div>
+
+        <!-- 员工榜 -->
+        <div class="chart-box">
+            <h5>🏆 员工效能榜 Top 10</h5>
+            <div class="sub">按综合效能指数降序，随部门筛选联动</div>
+            <div class="table-responsive">
+                <table class="table table-hover rank-table align-middle">
+                    <thead>
+                    <tr>
+                        <th>排名</th><th>员工</th><th>部门</th><th>出勤率</th><th>完工率</th>
+                        <th>平均 KPI</th><th>质量分</th><th>月均加班</th><th>效能指数</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tbTop"><tr><td colspan="9" class="text-center text-muted">加载中…</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="/vendor/jquery.min.js"></script>
+    <script>
+        const API = '/api';
+        const charts = {};
+        const PALETTE = ['#4361ee', '#4cc9f0', '#06d6a0', '#fb8500', '#f72585', '#7209b7', '#2a9d8f', '#e63946'];
+
+        function logout() { $.post('/api/logout', () => location.href = '/login'); }
+
+        /** 初始化（或复用）ECharts 实例 */
+        function chart(id) {
+            if (!charts[id]) {
+                charts[id] = echarts.init(document.getElementById(id));
+                window.addEventListener('resize', () => charts[id].resize());
+            }
+            return charts[id];
+        }
+
+        function num(v, digits) {
+            if (v === null || v === undefined || isNaN(v)) return '-';
+            return Number(v).toLocaleString('zh-CN', { minimumFractionDigits: digits || 0, maximumFractionDigits: digits || 0 });
+        }
+
+        const baseAxis = {
+            axisLine: { lineStyle: { color: '#d8dee9' } },
+            axisLabel: { color: '#6b7280', fontSize: 11 },
+            splitLine: { lineStyle: { color: '#f0f2f5' } }
+        };
+
+        // ==================== 各图表渲染 ====================
+
+        function renderOverview(d) {
+            $('#vEmp').text(num(d.employeeCount));
+            $('#vAtt').text(num(d.attendanceCount));
+            $('#vTask').text(num(d.taskCount));
+            $('#vPerf').text(num(d.performanceCount));
+            $('#vAttRate').text(d.attendanceRate + '%');
+            $('#vDone').text(d.completionRate + '%');
+            $('#vKpi').text(d.avgKpi);
+            $('#vQuality').text(d.avgQuality);
+            $('#rangeTip').text('数据区间 ' + d.dateFrom + ' ~ ' + d.dateTo
+                + '　|　质量分异常（>10）脏数据 ' + num(d.dirtyQualityCount) + ' 条，已在统计中剔除');
+        }
+
+        function renderTrend(rows) {
+            const months = rows.map(r => r.month);
+            const pick = k => rows.map(r => (r[k] === undefined ? null : r[k]));
+            chart('cTrend').setOption({
+                tooltip: { trigger: 'axis', valueFormatter: v => (v === null ? '-' : v) },
+                legend: { data: ['出勤率', '完工率', '平均KPI', '优秀率', '人均加班'], top: 0, textStyle: { fontSize: 12 } },
+                grid: { left: 50, right: 55, top: 40, bottom: 40 },
+                xAxis: Object.assign({ type: 'category', data: months }, baseAxis),
+                yAxis: [
+                    Object.assign({ type: 'value', name: '百分比 / 分', max: 100, min: 0 }, baseAxis),
+                    Object.assign({ type: 'value', name: '小时', splitLine: { show: false } }, baseAxis)
+                ],
+                series: [
+                    { name: '出勤率', type: 'line', smooth: true, data: pick('attendanceRate'), itemStyle: { color: PALETTE[0] }, symbolSize: 6 },
+                    { name: '完工率', type: 'line', smooth: true, data: pick('completionRate'), itemStyle: { color: PALETTE[2] }, symbolSize: 6 },
+                    { name: '平均KPI', type: 'line', smooth: true, data: pick('avgKpi'), itemStyle: { color: PALETTE[5] }, symbolSize: 6 },
+                    { name: '优秀率', type: 'line', smooth: true, data: pick('excellentRate'), itemStyle: { color: PALETTE[3] }, symbolSize: 6, lineStyle: { type: 'dashed' } },
+                    { name: '人均加班', type: 'bar', yAxisIndex: 1, data: pick('avgOvertime'), itemStyle: { color: '#c7d2fe' }, barWidth: '35%' }
+                ]
+            }, true);
+        }
+
+        function renderDept(rows) {
+            const data = rows.slice().reverse();   // ECharts 横向条形自下而上，反转后高分在上
+            chart('cDept').setOption({
+                tooltip: {
+                    trigger: 'axis', axisPointer: { type: 'shadow' },
+                    formatter: p => {
+                        const r = data[p[0].dataIndex];
+                        return '<b>' + r.deptName + '</b><br/>'
+                            + '效能指数：' + r.score + '<br/>'
+                            + '出勤率：' + r.attendanceRate + '%<br/>'
+                            + '完工率：' + r.completionRate + '%<br/>'
+                            + '平均KPI：' + r.avgKpi + '<br/>'
+                            + '准时率：' + r.onTimeRate + '%';
+                    }
+                },
+                grid: { left: 70, right: 60, top: 16, bottom: 24 },
+                xAxis: Object.assign({ type: 'value', max: 100 }, baseAxis),
+                yAxis: Object.assign({ type: 'category', data: rows.map(r => r.deptName) }, baseAxis),
+                series: [{
+                    type: 'bar', data: data.map(r => r.score),
+                    barWidth: '60%',
+                    label: { show: true, position: 'right', formatter: '{c}', fontSize: 11, color: '#6b7280' },
+                    itemStyle: {
+                        borderRadius: [0, 4, 4, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: '#4361ee' }, { offset: 1, color: '#4cc9f0' }
+                        ])
+                    }
+                }]
+            }, true);
+        }
+
+        function renderGrade(rows) {
+            const colorMap = { S: '#7c3aed', A: '#2563eb', B: '#0891b2', C: '#f59e0b', D: '#ef4444' };
+            chart('cGrade').setOption({
+                tooltip: { trigger: 'item', formatter: p => p.name + ' 档：' + num(p.value) + ' 条（' + p.percent + '%）' },
+                legend: { bottom: 0, textStyle: { fontSize: 12 } },
+                series: [{
+                    type: 'pie', radius: ['42%', '68%'], center: ['50%', '46%'],
+                    avoidLabelOverlap: true,
+                    label: { formatter: '{b}档 {d}%', fontSize: 12 },
+                    data: rows.map(r => ({
+                        name: r.grade, value: r.count,
+                        itemStyle: { color: colorMap[r.grade] || '#94a3b8' }
+                    }))
+                }]
+            }, true);
+        }
+
+        function renderHeat(d) {
+            // 出勤率实际波动区间很窄，按数据动态取色阶范围，避免整张图一个颜色
+            const vals = d.data.map(v => v[2]);
+            let vmin = Math.floor(Math.min.apply(null, vals));
+            let vmax = Math.ceil(Math.max.apply(null, vals));
+            if (vmax - vmin < 1) { vmax = vmin + 1; }
+            chart('cHeat').setOption({
+                tooltip: {
+                    position: 'top',
+                    formatter: p => d.depts[p.value[1]] + ' · ' + d.months[p.value[0]] + '<br/>出勤率 ' + p.value[2] + '%'
+                },
+                grid: { left: 90, right: 30, top: 20, bottom: 70 },
+                xAxis: { type: 'category', data: d.months, splitArea: { show: true }, axisLabel: { rotate: 40, fontSize: 11, color: '#6b7280' } },
+                yAxis: { type: 'category', data: d.depts, splitArea: { show: true }, axisLabel: { fontSize: 11, color: '#6b7280' } },
+                visualMap: {
+                    min: vmin, max: vmax, calculable: true, orient: 'horizontal',
+                    left: 'center', bottom: 10, itemWidth: 12, itemHeight: 90,
+                    formatter: v => v + '%',
+                    inRange: { color: ['#e0f2fe', '#7dd3fc', '#0ea5e9', '#1d4ed8'] },
+                    textStyle: { fontSize: 11 }
+                },
+                series: [{
+                    type: 'heatmap', data: d.data,
+                    label: { show: false },
+                    emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,.3)' } }
+                }]
+            }, true);
+        }
+
+        function renderTaskType(rows) {
+            chart('cTaskType').setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { data: ['完工率', '平均质量分'], top: 0, textStyle: { fontSize: 12 } },
+                grid: { left: 50, right: 55, top: 40, bottom: 50 },
+                xAxis: Object.assign({ type: 'category', data: rows.map(r => r.taskType), axisLabel: { rotate: 30, color: '#6b7280', fontSize: 11 } }, baseAxis),
+                yAxis: [
+                    Object.assign({ type: 'value', name: '完工率 %', max: 100 }, baseAxis),
+                    Object.assign({ type: 'value', name: '质量分', splitLine: { show: false } }, baseAxis)
+                ],
+                series: [
+                    {
+                        name: '完工率', type: 'bar', data: rows.map(r => r.completionRate), barWidth: '45%',
+                        itemStyle: { borderRadius: [4, 4, 0, 0], color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#4361ee' }, { offset: 1, color: '#a5b4fc' }]) }
+                    },
+                    { name: '平均质量分', type: 'line', yAxisIndex: 1, smooth: true, data: rows.map(r => r.avgQuality), itemStyle: { color: '#fb8500' }, symbolSize: 6 }
+                ]
+            }, true);
+        }
+
+        function renderLeave(rows) {
+            const colorMap = { '正常': '#4361ee', '事假': '#fb8500', '病假': '#ef4444', '年假': '#06d6a0', '调休': '#7209b7', '旷工': '#64748b' };
+            chart('cLeave').setOption({
+                tooltip: { trigger: 'item', formatter: p => p.name + '：' + num(p.value) + ' 条（' + p.percent + '%）' },
+                legend: { bottom: 0, textStyle: { fontSize: 12 } },
+                series: [{
+                    type: 'pie', radius: [20, 100], center: ['50%', '45%'], roseType: 'area',
+                    itemStyle: { borderRadius: 5 },
+                    label: { fontSize: 11, formatter: '{b} {d}%' },
+                    data: rows.map(r => ({ name: r.name, value: r.value, itemStyle: { color: colorMap[r.name] || '#94a3b8' } }))
+                }]
+            }, true);
+        }
+
+        function renderTop(rows) {
+            if (!rows || rows.length === 0) {
+                $('#tbTop').html('<tr><td colspan="9" class="text-center text-muted">暂无数据</td></tr>');
+                return;
+            }
+            let html = '';
+            rows.forEach(r => {
+                const medal = r.rank === 1 ? '🥇' : (r.rank === 2 ? '🥈' : (r.rank === 3 ? '🥉' : r.rank));
+                html += '<tr>'
+                    + '<td>' + medal + '</td>'
+                    + '<td>' + r.empName + '</td>'
+                    + '<td><span class="badge-soft">' + r.deptName + '</span></td>'
+                    + '<td>' + r.attendanceRate + '%</td>'
+                    + '<td>' + r.completionRate + '%</td>'
+                    + '<td>' + r.avgKpi + '</td>'
+                    + '<td>' + r.avgQuality + '</td>'
+                    + '<td>' + r.avgOvertime + ' h</td>'
+                    + '<td><b style="color:#4361ee">' + r.score + '</b></td>'
+                    + '</tr>';
+            });
+            $('#tbTop').html(html);
+        }
+
+        // ==================== 数据加载 ====================
+
+        function currentDept() {
+            const v = $('#deptSelect').val();
+            return v === '' || v === undefined ? null : Number(v);
+        }
+
+        function qs() {
+            const d = currentDept();
+            return d === null ? '' : '?deptId=' + d;
+        }
+
+        function loadAll() {
+            $.get(API + '/efficiency/overview' + qs(), r => { if (r.code === 200) renderOverview(r.data); });
+            $.get(API + '/efficiency/trend' + qs(), r => { if (r.code === 200) renderTrend(r.data); });
+            $.get(API + '/efficiency/grade' + qs(), r => { if (r.code === 200) renderGrade(r.data); });
+            $.get(API + '/efficiency/leave-type' + qs(), r => { if (r.code === 200) renderLeave(r.data); });
+            $.get(API + '/efficiency/task-type' + qs(), r => { if (r.code === 200) renderTaskType(r.data); });
+            $.get(API + '/efficiency/top-employee?limit=10' + (qs() ? '&deptId=' + currentDept() : ''),
+                r => { if (r.code === 200) renderTop(r.data); });
+        }
+
+        function loadGlobal() {
+            // 部门排行与热力图始终为全公司口径，不随筛选变化
+            $.get(API + '/efficiency/dept-rank?limit=15', r => { if (r.code === 200) renderDept(r.data); });
+            $.get(API + '/efficiency/heatmap', r => { if (r.code === 200) renderHeat(r.data); });
+        }
+
+        $(function () {
+            $.get(API + '/efficiency/departments', r => {
+                if (r.code === 200) {
+                    r.data.forEach(d => $('#deptSelect').append(
+                        '<option value="' + d.deptId + '">' + d.deptName + '</option>'));
+                }
+            });
+            $('#deptSelect').change(loadAll);
+            loadAll();
+            loadGlobal();
+        });
+    </script>
+</body>
+</html>

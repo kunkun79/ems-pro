@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>员工管理 - 企业管理系统 Pro</title>
-    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Microsoft YaHei',sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; }
-        .sidebar { width: 240px; min-height: 100vh; background: linear-gradient(180deg, #1a1a2e, #16213e); color: #fff; padding-top: 20px; }
+        .sidebar { width: 240px; min-height: 100vh; background: linear-gradient(180deg, #1a1a2e, #16213e); color: #fff; padding-top: 20px; flex-shrink: 0; }
         .sidebar .logo { padding: 0 20px 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.1); }
         .sidebar a { display: flex; align-items: center; gap: 12px; padding: 14px 20px; color: rgba(255,255,255,.7); text-decoration: none; font-size: 15px; border-left: 3px solid transparent; }
         .sidebar a:hover, .sidebar a.active { color: #fff; background: rgba(255,255,255,.08); border-left-color: #4361ee; }
-        .main { flex: 1; padding: 24px; }
+        .main { flex: 1; padding: 24px; overflow-y: auto; }
         .top-bar { background: #fff; border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
         .content-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
         .search-row { display: flex; gap: 12px; margin-bottom: 20px; }
@@ -28,6 +28,7 @@
         <a href="/dashboard"><i class="bi bi-speedometer2"></i> 仪表盘</a>
         <a href="/employee" class="active"><i class="bi bi-people"></i> 员工管理</a>
         <a href="/department"><i class="bi bi-diagram-3"></i> 部门管理</a>
+        <a href="/efficiency"><i class="bi bi-graph-up-arrow"></i> 效能可视化</a>
         <a href="/bigdata"><i class="bi bi-bar-chart"></i> 大数据分析</a>
         <a href="/bigdata-screen"><i class="bi bi-tv"></i> 数据大屏</a>
         <a href="/admin"><i class="bi bi-person-gear"></i> 个人中心</a>
@@ -47,6 +48,17 @@
             </div>
             <div class="table-responsive">
                 <table class="table table-hover">
+                    <colgroup>
+                        <col style="width:6%">
+                        <col style="width:12%">
+                        <col style="width:13%">
+                        <col style="width:7%">
+                        <col style="width:7%">
+                        <col style="width:15%">
+                        <col style="width:13%">
+                        <col style="width:10%">
+                        <col style="width:17%">
+                    </colgroup>
                     <thead>
                         <tr><th>ID</th><th>姓名</th><th>部门</th><th>性别</th><th>年龄</th><th>电话</th><th>薪资</th><th>状态</th><th>操作</th></tr>
                     </thead>
@@ -86,8 +98,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/jquery.min.js"></script>
+    <script src="/vendor/bootstrap.bundle.min.js"></script>
     <script>
         const API = '/api'; let currentPage = 1, modal;
         function logout() { $.post('/api/logout',()=>location.href='/login'); }

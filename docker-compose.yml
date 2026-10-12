@@ -1,10 +1,19 @@
 # ==========================================
 #  Hadoop + Hive 大数据环境 — Docker Compose
 #  使用方法：docker-compose up -d
-#  启动后 HiveServer2 监听 localhost:10000
+#  启动后：
+#    HiveServer2        localhost:10000
+#    HDFS NameNode UI   localhost:9870
+#    YARN 调度 UI       localhost:8088   （MapReduce 作业监控，论文截图用）
 #  然后在 application.yml 中设置：
 #    bigdata.mode: real
-#    bigdata.hive.jdbc-url: jdbc:hive2://localhost:10000/default
+#    bigdata.mr.framework: yarn
+#    bigdata.mr.fs-default-fs: hdfs://localhost:9000
+#
+#  【P3 补充】原配置只有 namenode + datanode，属于纯 HDFS 存储集群，
+#  没有计算资源调度，MapReduce 作业无法真正分布式运行。
+#  这里补齐 YARN 的 resourcemanager + nodemanager，
+#  并把 mapreduce.framework.name 设为 yarn，Hive 的查询引擎才能提交作业。
 # ==========================================
 version: "3"
 
@@ -15,6 +24,10 @@ services:
     restart: always
     environment:
       - CLUSTER_NAME=ems-cluster
+      # 让 Hive / MR 客户端知道 RM 在哪
+      - MAPRED_CONF_mapreduce_framework_name=yarn
+      - MAPRED_CONF_mapreduce_jobhistory_address=resourcemanager:10020
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
     ports:
       - "9870:9870"
       - "9000:9000"
@@ -29,10 +42,44 @@ services:
     restart: always
     environment:
       - SERVICE_PRECONDITION=namenode:9000
+      - MAPRED_CONF_mapreduce_framework_name=yarn
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
     ports:
       - "9864:9864"
     volumes:
       - datanode_data:/hadoop/dfs/data
+    networks:
+      - hadoop-net
+
+  # ---- P3 新增：YARN 资源调度 ----
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: always
+    environment:
+      - SERVICE_PRECONDITION=namenode:9000 datanode:9864
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - MAPRED_CONF_mapreduce_framework_name=yarn
+    ports:
+      # 8088 Web UI：查看作业列表、Container 分配、Shuffle 进度
+      - "8088:8088"
+      - "8030:8030"
+      - "8031:8031"
+      - "8032:8032"
+      - "8033:8033"
+    networks:
+      - hadoop-net
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: always
+    environment:
+      - SERVICE_PRECONDITION=namenode:9000 datanode:9864 resourcemanager:8088
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - MAPRED_CONF_mapreduce_framework_name=yarn
+    ports:
+      - "8042:8042"
     networks:
       - hadoop-net
 
@@ -43,6 +90,9 @@ services:
     environment:
       - HIVE_CORE_CONF_javax_jdo_option_ConnectionURL=jdbc:postgresql://hive-metastore/metastore
       - SERVICE_PRECONDITION=hive-metastore:9083
+      # Hive 2.3.2 默认执行引擎就是 MapReduce，必须指向 YARN 才能跑起来
+      - MAPRED_CONF_mapreduce_framework_name=yarn
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
     ports:
       - "10000:10000"
       - "10002:10002"

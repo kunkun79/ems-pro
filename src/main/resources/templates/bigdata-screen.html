@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大数据可视化大屏 - 企业管理系统 Pro</title>
-    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <title>员工效能大数据分析平台 - EMS-Pro</title>
+    <script src="/vendor/echarts.min.js"></script>
+    <script src="/vendor/jquery.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -14,268 +14,515 @@
             width: 100vw; height: 100vh;
         }
         .header {
-            height: 60px; line-height: 60px; text-align: center;
+            height: 58px; line-height: 58px; text-align: center; position: relative;
             background: linear-gradient(90deg, transparent, rgba(64,158,255,.15), transparent);
             border-bottom: 1px solid rgba(64,158,255,.3);
-            font-size: 24px; font-weight: 700; letter-spacing: 6px;
-            position: relative;
+            font-size: 22px; font-weight: 700; letter-spacing: 4px;
         }
-        .header .time { position: absolute; right: 30px; top: 0; font-size: 14px; color: #7ec8ff; letter-spacing: 2px; }
-        .container { display: grid; grid-template-columns: 280px 1fr 280px; grid-template-rows: 140px 1fr 1fr; gap: 12px; padding: 12px; height: calc(100vh - 60px); }
+        .header .mode { position: absolute; left: 24px; top: 0; font-size: 13px; color: #7ec8ff; letter-spacing: 1px; font-weight: 400; }
+        .header .time { position: absolute; right: 24px; top: 0; font-size: 13px; color: #7ec8ff; letter-spacing: 1px; font-weight: 400; }
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr 340px;
+            grid-template-rows: 1fr 1fr 1fr 44px;
+            gap: 10px; padding: 10px;
+            height: calc(100vh - 58px);
+        }
         .panel {
             background: rgba(16,22,57,.7); border: 1px solid rgba(64,158,255,.15);
-            border-radius: 6px; padding: 14px; position: relative; overflow: hidden;
+            border-radius: 6px; padding: 10px 12px; position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
         }
         .panel::before {
             content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
             background: linear-gradient(90deg, transparent, #409eff, transparent);
         }
-        .panel-title { font-size: 14px; color: #7ec8ff; margin-bottom: 10px; font-weight: 600; }
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .stat-card {
-            background: rgba(64,158,255,.08); border-radius: 4px; padding: 12px;
-            text-align: center; border: 1px solid rgba(64,158,255,.1);
+        .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+        .panel-title { font-size: 14px; color: #7ec8ff; font-weight: 600; white-space: nowrap; }
+        .panel-src { font-size: 11px; color: #5d6b8f; white-space: nowrap; }
+        .panel-body { flex: 1; min-height: 0; position: relative; }
+        .chart-div { width: 100%; height: 100%; }
+
+        .mini-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+        .mini-card {
+            background: rgba(64,158,255,.08); border: 1px solid rgba(64,158,255,.12);
+            border-radius: 4px; padding: 6px 2px; text-align: center;
         }
-        .stat-card .num { font-size: 28px; font-weight: 700; color: #409eff; }
-        .stat-card .label { font-size: 12px; color: #8899bb; margin-top: 4px; }
-        .chart-div { width: 100%; height: calc(100% - 30px); }
-        .pipeline {
-            display: flex; align-items: center; justify-content: center; gap: 0;
-            height: 50px; margin-top: 20px;
-        }
+        .mini-card .n { font-size: 17px; font-weight: 700; color: #409eff; }
+        .mini-card .l { font-size: 11px; color: #8899bb; margin-top: 2px; }
+        .mini-card.warn .n { color: #6b7a99; }
+
+        .tbl { width: 100%; font-size: 11.5px; border-collapse: collapse; }
+        .tbl td { padding: 3px 2px; border-bottom: 1px solid rgba(255,255,255,.05); color: #aab; }
+        .tbl td.num { text-align: right; color: #7ec8ff; font-weight: 600; }
+        .tbl td.na { text-align: right; color: #4a5570; }
+        .tbl .layer-tag { display: inline-block; width: 34px; color: #5d6b8f; }
+        .scroll-y { overflow-y: auto; max-height: 100%; }
+        .scroll-y::-webkit-scrollbar { width: 4px; }
+        .scroll-y::-webkit-scrollbar-thumb { background: rgba(64,158,255,.3); border-radius: 2px; }
+
+        .pipeline { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 8px; }
         .pipe-node {
-            width: 100px; height: 44px; line-height: 44px; text-align: center;
-            background: linear-gradient(135deg, #1a237e, #283593); border-radius: 20px;
-            font-size: 13px; font-weight: 600; color: #fff;
-            border: 1px solid rgba(64,158,255,.3);
+            flex: 1; height: 30px; line-height: 30px; text-align: center; font-size: 11px;
+            background: rgba(26,35,126,.8); border: 1px solid rgba(64,158,255,.25);
+            border-radius: 15px; color: #c7d3e8;
         }
-        .pipe-node.active { background: linear-gradient(135deg, #0d47a1, #1565c0); border-color: #409eff; box-shadow: 0 0 12px rgba(64,158,255,.4); }
-        .pipe-arrow {
-            width: 40px; height: 2px; background: linear-gradient(90deg, #409eff, transparent);
-            position: relative;
+        .pipe-arrow { width: 14px; text-align: center; color: #409eff; font-size: 10px; }
+        .kv { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: #aab; }
+        .kv b { color: #7ec8ff; font-weight: 600; }
+        .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+        .dot.online { background: #00c853; }
+        .dot.offline { background: #ff5252; }
+
+        .job-item { border-bottom: 1px solid rgba(255,255,255,.06); padding: 5px 0; }
+        .job-item:last-child { border-bottom: none; }
+        .job-top { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .job-name { color: #e6edf7; font-weight: 600; }
+        .job-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+        .job-badge.ok { background: rgba(0,200,83,.15); color: #00c853; border: 1px solid rgba(0,200,83,.3); }
+        .job-badge.fail { background: rgba(255,82,82,.15); color: #ff5252; border: 1px solid rgba(255,82,82,.3); }
+        .job-metrics { font-size: 11px; color: #8899bb; margin-top: 3px; line-height: 1.5; }
+        .job-metrics span { margin-right: 10px; }
+        .job-metrics i { color: #409eff; font-style: normal; font-weight: 600; }
+
+        .bar-row { margin-bottom: 8px; }
+        .bar-label { display: flex; justify-content: space-between; font-size: 11.5px; color: #aab; margin-bottom: 3px; }
+        .bar-track { height: 7px; background: rgba(255,255,255,.07); border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #1565c0, #409eff); }
+        .bar-fill.warn { background: linear-gradient(90deg, #6b4f00, #ef9f27); }
+        .empty-tip { color: #5d6b8f; font-size: 12px; text-align: center; padding-top: 22px; line-height: 1.8; }
+
+        .footer {
+            grid-column: 1 / 4; display: flex; align-items: center; overflow: hidden;
+            background: rgba(16,22,57,.7); border: 1px solid rgba(64,158,255,.15);
+            border-radius: 6px; padding: 0 12px;
         }
-        .pipe-arrow::after {
-            content: '▶'; position: absolute; right: -4px; top: -8px; color: #409eff; font-size: 10px;
+        .footer .tag { color: #409eff; font-size: 12px; font-weight: 600; margin-right: 14px; white-space: nowrap; }
+        .marquee { flex: 1; overflow: hidden; white-space: nowrap; }
+        .marquee span { display: inline-block; font-size: 12px; color: #aab; padding-left: 100%; animation: roll 38s linear infinite; }
+        .marquee span b { color: #00c853; }
+        @keyframes roll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; height: 100%; }
+        .stat-card {
+            background: rgba(64,158,255,.08); border: 1px solid rgba(64,158,255,.12);
+            border-radius: 6px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
         }
-        .hive-status { text-align: center; margin-top: 12px; font-size: 13px; }
-        .hive-status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-        .hive-status .dot.online { background: #00c853; box-shadow: 0 0 8px #00c853; }
-        .hive-status .dot.offline { background: #ff5252; }
-        .scroll-list { overflow-y: auto; max-height: calc(100% - 30px); font-size: 12px; }
-        .scroll-list .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.05); color: #aab; }
-        .scroll-list .row .date { color: #7ec8ff; }
-        .scroll-list .row .count { color: #00c853; font-weight: 600; }
+        .stat-card .num { font-size: 30px; font-weight: 700; color: #409eff; line-height: 1.1; }
+        .stat-card .label { font-size: 12px; color: #8899bb; margin-top: 6px; }
+        .stat-card .sub { font-size: 11px; color: #5d6b8f; margin-top: 3px; }
     </style>
 </head>
 <body>
 <div class="header">
-    企业管理系统 Pro — 大数据可视化大屏
+    员工效能大数据分析平台
+    <span class="mode" id="modeText">模式加载中</span>
     <span class="time" id="clock">--</span>
 </div>
+
 <div class="container">
-    <!-- 左1: ETL 管道状态 -->
-    <div class="panel" style="grid-row:1">
-        <div class="panel-title">⚙ ETL 管道</div>
-        <div class="pipeline">
-            <div class="pipe-node" id="node-mysql">MySQL</div>
-            <div class="pipe-arrow"></div>
-            <div class="pipe-node" id="node-extract">Extract</div>
-            <div class="pipe-arrow"></div>
-            <div class="pipe-node" id="node-transform">Transform</div>
-            <div class="pipe-arrow"></div>
-            <div class="pipe-node" id="node-load">Load</div>
-            <div class="pipe-arrow"></div>
-            <div class="pipe-node" id="node-hive">Hive</div>
+    <!-- 左1：数仓分层存量 -->
+    <div class="panel" style="grid-column:1;grid-row:1">
+        <div class="panel-head">
+            <span class="panel-title">数仓分层存量</span>
+            <span class="panel-src" id="layerSrc">--</span>
         </div>
-        <div class="hive-status"><span class="dot online"></span> <span id="hiveMode">模拟模式</span> | 分区: <span id="partition">--</span></div>
-        <div style="text-align:center;margin-top:12px">
-            <button onclick="runETL()" style="background:#1565c0;color:#fff;border:none;padding:6px 18px;border-radius:14px;cursor:pointer;font-size:12px">▶ 执行ETL</button>
+        <div class="panel-body">
+            <div class="mini-grid" id="layerCards"></div>
+            <div class="scroll-y">
+                <table class="tbl"><tbody id="layerTable"></tbody></table>
+            </div>
         </div>
     </div>
 
-    <!-- 中部4个统计卡片 -->
+    <!-- 左2：ETL 管道 -->
+    <div class="panel" style="grid-column:1;grid-row:2">
+        <div class="panel-head">
+            <span class="panel-title">ETL 管道状态</span>
+            <span class="panel-src">ODS 抽取</span>
+        </div>
+        <div class="panel-body">
+            <div class="pipeline">
+                <div class="pipe-node">MySQL</div><div class="pipe-arrow">▶</div>
+                <div class="pipe-node">Extract</div><div class="pipe-arrow">▶</div>
+                <div class="pipe-node">Transform</div><div class="pipe-arrow">▶</div>
+                <div class="pipe-node">Load</div><div class="pipe-arrow">▶</div>
+                <div class="pipe-node">Hive</div>
+            </div>
+            <div id="etlInfo"></div>
+        </div>
+    </div>
+
+    <!-- 左3：DQC -->
+    <div class="panel" style="grid-column:1;grid-row:3">
+        <div class="panel-head">
+            <span class="panel-title">DQC 数据质量</span>
+            <span class="panel-src">MR Counters</span>
+        </div>
+        <div class="panel-body">
+            <div id="dqcInfo"></div>
+            <div class="chart-div" id="chartDqc"></div>
+        </div>
+    </div>
+
+    <!-- 中1：指标卡 -->
     <div class="panel" style="grid-column:2;grid-row:1">
-        <div class="stat-grid">
-            <div class="stat-card"><div class="num" id="s-emp">-</div><div class="label">员工总数</div></div>
-            <div class="stat-card"><div class="num" id="s-dept">-</div><div class="label">部门数量</div></div>
-            <div class="stat-card"><div class="num" id="s-salary">-</div><div class="label">平均薪资</div></div>
-            <div class="stat-card"><div class="num" id="s-hive">-</div><div class="label">Hive 记录数</div></div>
+        <div class="panel-head">
+            <span class="panel-title">核心指标</span>
+            <span class="panel-src" id="cardSrc">--</span>
+        </div>
+        <div class="panel-body">
+            <div class="stat-grid" id="statCards"></div>
         </div>
     </div>
 
-    <!-- 右1: 操作趋势 -->
-    <div class="panel" style="grid-row:1">
-        <div class="panel-title">📊 操作趋势</div>
-        <div class="scroll-list" id="trendList"></div>
-    </div>
-
-    <!-- 左2: 部门效能 -->
-    <div class="panel" style="grid-row:2/4">
-        <div class="panel-title">🏢 部门效能</div>
-        <div class="chart-div" id="chartDept"></div>
-    </div>
-
-    <!-- 中2: 薪资区间 -->
+    <!-- 中2：部门效能排行 -->
     <div class="panel" style="grid-column:2;grid-row:2">
-        <div class="panel-title">💰 薪资区间分布</div>
-        <div class="chart-div" id="chartSalary"></div>
+        <div class="panel-head">
+            <span class="panel-title">部门效能排行</span>
+            <span class="panel-src" id="rankSrc">--</span>
+        </div>
+        <div class="panel-body"><div class="chart-div" id="chartRank"></div></div>
     </div>
 
-    <!-- 右2: 性别分布 -->
-    <div class="panel" style="grid-row:2">
-        <div class="panel-title">👥 性别分布</div>
-        <div class="chart-div" id="chartGender"></div>
-    </div>
-
-    <!-- 中3: 操作热力图 -->
+    <!-- 中3：月度趋势 -->
     <div class="panel" style="grid-column:2;grid-row:3">
-        <div class="panel-title">🔥 每小时操作热力图</div>
-        <div class="chart-div" id="chartHeatmap"></div>
+        <div class="panel-head">
+            <span class="panel-title">月度效能趋势</span>
+            <span class="panel-src">12 个月</span>
+        </div>
+        <div class="panel-body"><div class="chart-div" id="chartTrend"></div></div>
     </div>
 
-    <!-- 右3: 操作分布 -->
-    <div class="panel" style="grid-row:3">
-        <div class="panel-title">📋 操作类型分布</div>
-        <div class="chart-div" id="chartOpDist"></div>
+    <!-- 右1：MR 作业 -->
+    <div class="panel" style="grid-column:3;grid-row:1">
+        <div class="panel-head">
+            <span class="panel-title">MapReduce 作业</span>
+            <span class="panel-src" id="jobSrc">Counters</span>
+        </div>
+        <div class="panel-body scroll-y" id="jobList"></div>
+    </div>
+
+    <!-- 右2：集群资源 -->
+    <div class="panel" style="grid-column:3;grid-row:2">
+        <div class="panel-head">
+            <span class="panel-title">集群资源</span>
+            <span class="panel-src" id="clusterSrc">HDFS / YARN</span>
+        </div>
+        <div class="panel-body scroll-y" id="clusterInfo"></div>
+    </div>
+
+    <!-- 右3：性能对比 -->
+    <div class="panel" style="grid-column:3;grid-row:3">
+        <div class="panel-head">
+            <span class="panel-title">Reduce 数 × 耗时</span>
+            <span class="panel-src">P4 加速比实验</span>
+        </div>
+        <div class="panel-body">
+            <div class="chart-div" id="chartScaling"></div>
+            <div class="empty-tip" id="scalingTip" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- 底部滚动 -->
+    <div class="footer">
+        <span class="tag">作业执行流水</span>
+        <div class="marquee"><span id="marqueeText">加载中…</span></div>
     </div>
 </div>
 
 <script>
     const API = '/api';
-    let allCharts = [];
+    let charts = [];
+    const AXIS = { color: '#8899bb', fontSize: 10 };
+    const SPLIT = { lineStyle: { color: 'rgba(255,255,255,.06)' } };
 
-    function initChart(id) {
-        let c = echarts.init(document.getElementById(id));
-        allCharts.push(c);
+    function chart(id) {
+        let c = echarts.getInstanceByDom(document.getElementById(id)) || echarts.init(document.getElementById(id));
+        if (charts.indexOf(c) < 0) charts.push(c);
         return c;
     }
+    function fmt(n) {
+        if (n === null || n === undefined) return '—';
+        n = Number(n);
+        if (n >= 100000000) return (n / 100000000).toFixed(2) + '亿';
+        if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+        return String(n);
+    }
+    function bytes(n) {
+        n = Number(n) || 0;
+        if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+        if (n >= 1048576) return (n / 1048576).toFixed(2) + ' MB';
+        if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+        return n + ' B';
+    }
+    function pct(n) { return n === null || n === undefined ? '—' : (Number(n).toFixed(2) + '%'); }
 
-    // 时钟
     function tick() { $('#clock').text(new Date().toLocaleString('zh-CN')); }
     setInterval(tick, 1000); tick();
 
-    // ETL 按钮
-    function runETL() {
-        $('#node-extract,#node-transform,#node-load,#node-hive').addClass('active');
-        $.ajax({ url: API + '/bigdata/etl/run', type: 'POST', contentType: 'application/json', data: '{}',
-            success: function(r) {
-            if (r.code === 200) {
-                $('#partition').text(r.data.loadPartition);
-                $('#node-extract,#node-transform,#node-load,#node-hive').removeClass('active');
-                loadStats();
-            }
-        }});
+    // ---------- 左1：分层存量 ----------
+    function renderLayers(d) {
+        if (!d) return;
+        $('#layerSrc').text(d.source === 'hive' ? 'Hive count(*)' : '源库行数');
+        let cards = '';
+        (d.layers || []).forEach(function (l) {
+            let has = l.rows > 0;
+            cards += '<div class="mini-card' + (has ? '' : ' warn') + '">'
+                + '<div class="n">' + (has ? fmt(l.rows) : '—') + '</div>'
+                + '<div class="l">' + l.layer + '</div></div>';
+        });
+        $('#layerCards').html(cards);
+
+        let rows = '';
+        (d.tables || []).forEach(function (t) {
+            rows += '<tr><td><span class="layer-tag">' + t.layer + '</span>' + t.label + '</td>'
+                + '<td class="' + (t.available ? 'num' : 'na') + '">'
+                + (t.available ? fmt(t.rows) : '未建模') + '</td></tr>';
+        });
+        $('#layerTable').html(rows);
     }
 
-    // 加载统计
-    function loadStats() {
-        $.get(API + '/bigdata/status', r => {
-            if (r.code === 200) {
-                $('#hiveMode').text(r.data.message.includes('真实') ? '真实Hive模式' : '模拟模式');
-                $('#node-hive').text(r.data.message.includes('真实') ? 'Hive(HDFS)' : 'Hive(模拟)');
-                $('.hive-status .dot').attr('class', 'dot ' + (r.data.message.includes('正常') ? 'online' : 'offline'));
-            }
-        });
-        $.get(API + '/employee/page?page=1&size=9999', r => {
-            if (r.code === 200) {
-                let emps = r.data.records;
-                $('#s-emp').text(emps.length);
-                let total = emps.reduce((s, e) => s + (e.salary || 0), 0);
-                $('#s-salary').text('¥' + (emps.length > 0 ? (total / emps.length).toFixed(0) : 0));
-            }
-        });
-        $.get(API + '/department', r => { if (r.code === 200) $('#s-dept').text(r.data.length); });
-        $.get(API + '/bigdata/status', r => { if (r.code === 200) $('#s-hive').text(r.data.hiveTables || 0); });
+    // ---------- 左2：ETL ----------
+    function renderEtl(d) {
+        if (!d) return;
+        let real = d.mode === 'real';
+        let rows = '';
+        rows += '<div class="kv"><span>运行模式</span><b>' + (real ? 'real（真实 HiveServer2）' : 'simulator（本地模拟）') + '</b></div>';
+        rows += '<div class="kv"><span>定时调度</span><b>' + (d.schedulerEnabled ? '已开启 ' + d.cron : '未开启（' + d.cron + '）') + '</b></div>';
+        rows += '<div class="kv"><span>批大小</span><b>' + d.batchSize + ' 行/批</b></div>';
+        let src = d.sourceRows || {};
+        rows += '<div class="kv" style="margin-top:6px"><span>源库待抽取</span><b>' + fmt(src.attendance) + ' 条</b></div>';
+        rows += '<div class="kv"><span>考勤 / 任务 / 绩效</span><b>' + fmt(src.attendance) + ' / ' + fmt(src.task) + ' / ' + fmt(src.performance) + '</b></div>';
+        rows += '<div class="kv"><span>员工 / 部门</span><b>' + fmt(src.employee) + ' / ' + fmt(src.department) + '</b></div>';
+        $('#etlInfo').html(rows);
     }
 
-    // 图表
-    function loadCharts() {
-        // 员工画像
-        $.get(API + '/analysis/employee/portrait', r => {
-            if (r.code !== 200) return;
+    // ---------- 左3：DQC ----------
+    function renderDqc(d) {
+        if (!d) return;
+        if (!d.available) {
+            $('#dqcInfo').html('<div class="empty-tip">' + (d.hint || '暂无数据') + '</div>');
+            chart('chartDqc').clear();
+            return;
+        }
+        let rows = '';
+        rows += '<div class="kv"><span>校验总数</span><b>' + fmt(d.total) + '</b></div>';
+        rows += '<div class="kv"><span>异常记录</span><b>' + fmt(d.abnormal) + '</b></div>';
+        rows += '<div class="kv"><span>异常率</span><b>' + pct(d.rate) + '</b></div>';
+        $('#dqcInfo').html(rows);
+        chart('chartDqc').setOption({
+            backgroundColor: 'transparent',
+            series: [{
+                type: 'pie', radius: ['58%', '78%'], center: ['50%', '62%'],
+                label: { show: false },
+                data: [
+                    { value: d.abnormal, name: '异常', itemStyle: { color: '#ef5350' } },
+                    { value: Math.max(0, d.total - d.abnormal), name: '正常', itemStyle: { color: '#1e88e5' } }
+                ]
+            }],
+            graphic: {
+                type: 'text', left: 'center', top: '52%',
+                style: { text: pct(d.rate), fill: '#7ec8ff', fontSize: 15, fontWeight: 600 }
+            }
+        });
+    }
+
+    // ---------- 中1：指标卡 ----------
+    function renderCards(o, mode) {
+        if (!o) return;
+        let total = (o.attendanceCount || 0) + (o.taskCount || 0) + (o.performanceCount || 0);
+        $('#cardSrc').text(mode === 'real' ? 'Hive ADS 口径' : 'MySQL 聚合（ADS 口径）');
+        let html = '';
+        html += '<div class="stat-card"><div class="num">' + fmt(o.employeeCount) + '</div><div class="label">在册员工</div><div class="sub">15 个部门</div></div>';
+        html += '<div class="stat-card"><div class="num">' + fmt(total) + '</div><div class="label">事实数据总量</div><div class="sub">考勤+任务+绩效</div></div>';
+        html += '<div class="stat-card"><div class="num">' + pct(o.attendanceRate) + '</div><div class="label">出勤率</div><div class="sub">完工率 ' + pct(o.completionRate) + '</div></div>';
+        html += '<div class="stat-card"><div class="num">' + (o.avgKpi === null || o.avgKpi === undefined ? '—' : Number(o.avgKpi).toFixed(1)) + '</div><div class="label">平均 KPI</div><div class="sub">' + (o.dateFrom || '') + ' 起</div></div>';
+        $('#statCards').html(html);
+    }
+
+    // ---------- 中2：部门排行 ----------
+    function renderRank(list, mode) {
+        if (!list || !list.length) return;
+        $('#rankSrc').text(mode === 'real' ? '来源 ADS · Hive' : '来源 ADS 口径 · MySQL');
+        list = list.slice(0, 10).slice().reverse();
+        chart('chartRank').setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: 68, right: 46, top: 8, bottom: 8 },
+            xAxis: { type: 'value', axisLabel: AXIS, splitLine: SPLIT, max: 100 },
+            yAxis: {
+                type: 'category', data: list.map(function (i) { return i.deptName; }),
+                axisLabel: { color: '#aab', fontSize: 11 }, axisLine: { lineStyle: { color: '#334' } }
+            },
+            series: [{
+                type: 'bar', data: list.map(function (i) { return Number(i.score).toFixed(2); }),
+                barWidth: '58%',
+                itemStyle: { borderRadius: [0, 4, 4, 0], color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#0d47a1' }, { offset: 1, color: '#409eff' }]) },
+                label: { show: true, position: 'right', color: '#7ec8ff', fontSize: 10 }
+            }]
+        });
+    }
+
+    // ---------- 中3：月度趋势 ----------
+    function renderTrend(list) {
+        if (!list || !list.length) return;
+        chart('chartTrend').setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['出勤率', '完工率', '平均KPI'], textStyle: { color: '#8899bb', fontSize: 10 }, top: 0, itemWidth: 12, itemHeight: 8 },
+            grid: { left: 42, right: 16, top: 26, bottom: 20 },
+            xAxis: {
+                type: 'category', data: list.map(function (i) { return i.month; }),
+                axisLabel: { color: '#8899bb', fontSize: 10 }, axisLine: { lineStyle: { color: '#334' } }
+            },
+            yAxis: [
+                { type: 'value', max: 100, axisLabel: AXIS, splitLine: SPLIT },
+                { type: 'value', max: 100, axisLabel: { show: false }, splitLine: { show: false } }
+            ],
+            series: [
+                {
+                    name: '出勤率', type: 'line', smooth: true, data: list.map(function (i) { return i.attendanceRate; }),
+                    lineStyle: { color: '#409eff', width: 2 }, itemStyle: { color: '#409eff' }, symbolSize: 4
+                },
+                {
+                    name: '完工率', type: 'line', smooth: true, data: list.map(function (i) { return i.completionRate; }),
+                    lineStyle: { color: '#00c853', width: 2 }, itemStyle: { color: '#00c853' }, symbolSize: 4
+                },
+                {
+                    name: '平均KPI', type: 'line', smooth: true, yAxisIndex: 1, data: list.map(function (i) { return i.avgKpi; }),
+                    lineStyle: { color: '#ef9f27', width: 2 }, itemStyle: { color: '#ef9f27' }, symbolSize: 4
+                }
+            ]
+        });
+    }
+
+    // ---------- 右1：MR 作业 ----------
+    function renderJobs(d) {
+        if (!d) return;
+        let list = d.latest || [];
+        if (!list.length) {
+            $('#jobList').html('<div class="empty-tip">尚无作业记录<br>请在 MapReduce 页面执行作业</div>');
+            return;
+        }
+        let html = '';
+        list.forEach(function (j) {
+            html += '<div class="job-item">';
+            html += '<div class="job-top"><span class="job-name">' + j.jobName + (j.joinMode ? ' · ' + j.joinMode : '') + '</span>';
+            html += '<span class="job-badge ' + (j.success ? 'ok' : 'fail') + '">' + (j.success ? '成功' : '失败') + ' ' + (j.durationMs / 1000).toFixed(1) + 's</span></div>';
+            html += '<div class="job-metrics">';
+            html += '<span>Map <i>' + j.launchedMaps + '</i></span>';
+            html += '<span>Reduce <i>' + j.launchedReduces + '</i></span>';
+            html += '<span>输入 <i>' + fmt(j.mapInputRecords) + '</i></span>';
+            html += '<span>输出 <i>' + fmt(j.reduceOutputRecords) + '</i></span>';
+            html += '</div><div class="job-metrics">';
+            html += '<span>Shuffle <i>' + bytes(j.mapOutputBytes) + '</i></span>';
+            html += '<span>溢写 <i>' + fmt(j.spilledRecords) + '</i></span>';
+            html += '<span>框架 <i>' + (j.framework || '-') + '</i></span>';
+            html += '</div></div>';
+        });
+        $('#jobList').html(html);
+
+        let s = d.summary || {};
+        $('#jobSrc').text('累计 ' + (s.total || 0) + ' 次 · Shuffle ' + bytes(s.shuffleBytes));
+
+        // 底部滚动流水
+        let text = '';
+        list.forEach(function (j) {
+            text += '【' + j.jobName + '】' + (j.framework || 'local') + ' 框架，Map ' + j.launchedMaps
+                + ' / Reduce ' + j.launchedReduces + '，输入 ' + fmt(j.mapInputRecords) + ' 条，Shuffle '
+                + bytes(j.mapOutputBytes) + '，耗时 ' + (j.durationMs / 1000).toFixed(1) + ' 秒，'
+                + (j.success ? '<b>执行成功</b>' : '执行失败') + '　　';
+        });
+        $('#marqueeText').html(text || '暂无作业记录');
+    }
+
+    // ---------- 右2：集群资源 ----------
+    function renderCluster(d) {
+        if (!d) return;
+        let h = d.hdfs || {}, y = d.yarn || {};
+        if (!d.connected) {
+            $('#clusterSrc').text('未连接');
+            $('#clusterInfo').html('<div class="empty-tip">未检测到 Hadoop 集群<br>' + (d.hint || '') + '</div>');
+            return;
+        }
+        $('#clusterSrc').text(d.connected ? '实时' : '未连接');
+        let html = '';
+        if (h.error) {
+            html += '<div class="kv"><span>HDFS</span><b style="color:#ff5252">不可达</b></div>';
+        } else {
+            html += '<div class="bar-row"><div class="bar-label"><span>HDFS 容量</span><span>' + pct(h.usedPercent) + '</span></div>';
+            html += '<div class="bar-track"><div class="bar-fill" style="width:' + Math.min(100, h.usedPercent || 0) + '%"></div></div></div>';
+            html += '<div class="kv"><span>已用 / 总量</span><b>' + bytes(h.capacityUsed) + ' / ' + bytes(h.capacityTotal) + '</b></div>';
+            html += '<div class="kv"><span>DataNode 存活</span><b>' + h.liveNodes + ' 个（失效 ' + h.deadNodes + '）</b></div>';
+            html += '<div class="kv"><span>文件 / 块</span><b>' + fmt(h.totalFiles) + ' / ' + fmt(h.totalBlocks) + '</b></div>';
+        }
+        if (y.error) {
+            html += '<div class="kv" style="margin-top:6px"><span>YARN</span><b style="color:#ff5252">不可达</b></div>';
+        } else {
+            html += '<div class="bar-row" style="margin-top:8px"><div class="bar-label"><span>YARN 内存</span><span>' + pct(y.memoryUsedPercent) + '</span></div>';
+            html += '<div class="bar-track"><div class="bar-fill warn" style="width:' + Math.min(100, y.memoryUsedPercent || 0) + '%"></div></div></div>';
+            html += '<div class="kv"><span>NodeManager 活跃</span><b>' + y.activeNodes + ' 个</b></div>';
+            html += '<div class="kv"><span>容器 / 核数</span><b>' + y.containersAllocated + ' / ' + y.totalVirtualCores + ' 核</b></div>';
+            html += '<div class="kv"><span>应用 运行/完成/失败</span><b>' + y.appsRunning + ' / ' + y.appsCompleted + ' / ' + y.appsFailed + '</b></div>';
+        }
+        $('#clusterInfo').html(html);
+    }
+
+    // ---------- 右3：加速比 ----------
+    function renderScaling(list) {
+        let data = (list || []).filter(function (i) { return i.avgDuration; });
+        if (!data.length) {
+            $('#chartScaling').hide();
+            $('#scalingTip').show().html('暂无对比数据<br>用不同 Reduce 数各跑一次<br>「部门效能聚合」即可生成');
+            return;
+        }
+        $('#chartScaling').show();
+        $('#scalingTip').hide();
+        chart('chartScaling').setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis' },
+            grid: { left: 48, right: 16, top: 14, bottom: 22 },
+            xAxis: {
+                type: 'category', data: data.map(function (i) { return 'Reduce ' + i.reduces; }),
+                axisLabel: AXIS, axisLine: { lineStyle: { color: '#334' } }
+            },
+            yAxis: { type: 'value', name: 'ms', nameTextStyle: { color: '#5d6b8f', fontSize: 10 }, axisLabel: AXIS, splitLine: SPLIT },
+            series: [{
+                type: 'bar', data: data.map(function (i) { return Math.round(i.avgDuration); }),
+                barWidth: '46%',
+                itemStyle: { borderRadius: [4, 4, 0, 0], color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#00c853' }, { offset: 1, color: '#0d47a1' }]) },
+                label: { show: true, position: 'top', color: '#7ec8ff', fontSize: 10 }
+            }]
+        });
+    }
+
+    // ---------- 加载 ----------
+    function loadAll() {
+        $.get(API + '/screen/overview', function (r) {
+            if (r.code !== 200 || !r.data) return;
             let d = r.data;
-            initChart('chartGender').setOption({
-                tooltip: { trigger: 'item' }, backgroundColor: 'transparent',
-                series: [{
-                    type: 'pie', radius: ['40%', '68%'],
-                    data: d.genderDistribution,
-                    label: { color: '#aab', fontSize: 11 },
-                    itemStyle: { borderColor: '#0a0e27', borderWidth: 2 }
-                }]
-            });
-            initChart('chartSalary').setOption({
-                tooltip: { trigger: 'axis' }, backgroundColor: 'transparent',
-                grid: { left: 50, right: 20, top: 10, bottom: 25 },
-                xAxis: { type: 'category', data: d.salaryDistribution.map(i=>i.name), axisLabel: { color: '#aab', fontSize: 10, rotate: 15 }, axisLine: { lineStyle: { color: '#334' } } },
-                yAxis: { type: 'value', axisLabel: { color: '#aab', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
-                series: [{
-                    type: 'bar', data: d.salaryDistribution.map(i=>i.value),
-                    itemStyle: { borderRadius: [4,4,0,0],
-                        color: new echarts.graphic.LinearGradient(0,0,0,1,[
-                            {offset:0,color:'#409eff'},{offset:1,color:'#0d47a1'}
-                        ])
-                    }, barWidth: '50%'
-                }]
-            });
-            initChart('chartDept').setOption({
-                tooltip: { trigger: 'axis' }, backgroundColor: 'transparent',
-                grid: { left: 45, right: 10, top: 10, bottom: 25 },
-                xAxis: { type: 'category', data: d.deptDistribution.map(i=>'部门'+i.deptId), axisLabel: { color: '#aab', fontSize: 9, rotate: 30 }, axisLine: { lineStyle: { color: '#334' } } },
-                yAxis: { type: 'value', axisLabel: { color: '#aab', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
-                series: [{
-                    type: 'bar', data: d.deptDistribution.map(i=>i.count),
-                    itemStyle: { borderRadius: [4,4,0,0], color: '#00c853' }, barWidth: '55%'
-                }]
-            });
+            $('#modeText').html('<span class="dot ' + (d.layers && d.layers.mode === 'real' ? 'online' : 'offline') + '"></span>'
+                + (d.layers && d.layers.mode === 'real' ? 'real 模式 · 真实 Hive' : 'simulator 模式 · 本地模拟'));
+            renderLayers(d.layers);
+            renderEtl(d.etl);
+            renderDqc(d.dqc);
+            renderJobs(d.jobs);
+            renderCards(d.efficiencyOverview, d.layers ? d.layers.mode : 'simulator');
+            renderRank(d.deptRank, d.layers ? d.layers.mode : 'simulator');
+            renderTrend(d.trend);
+            renderScaling(d.jobs ? d.jobs.reduceScaling : null);
         });
-
-        // 操作分布
-        $.get(API + '/analysis/operation/distribution', r => {
-            if (r.code !== 200) return;
-            initChart('chartOpDist').setOption({
-                tooltip: { trigger: 'item' }, backgroundColor: 'transparent',
-                series: [{
-                    type: 'pie', radius: '65%', roseType: 'area',
-                    data: r.data, label: { color: '#aab', fontSize: 10 },
-                    itemStyle: { borderColor: '#0a0e27', borderWidth: 2 }
-                }]
-            });
-        });
-
-        // 操作热力图（每小时操作量）
-        $.get(API + '/analysis/operation/heatmap', r => {
-            if (r.code !== 200) return;
-            let hours = r.data.map(i=>i.hour + ':00');
-            let counts = r.data.map(i=>i.count);
-            initChart('chartHeatmap').setOption({
-                tooltip: { trigger: 'axis' }, backgroundColor: 'transparent',
-                grid: { left: 50, right: 20, top: 10, bottom: 25 },
-                xAxis: { type: 'category', data: hours, axisLabel: { color: '#aab', fontSize: 10 }, axisLine: { lineStyle: { color: '#334' } } },
-                yAxis: { type: 'value', axisLabel: { color: '#aab', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.05)' } } },
-                series: [{
-                    type: 'line', data: counts, smooth: true,
-                    lineStyle: { color: '#409eff', width: 2 },
-                    itemStyle: { color: '#00c853' },
-                    areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[
-                        {offset:0,color:'rgba(64,158,255,.3)'},{offset:1,color:'rgba(64,158,255,.02)'}
-                    ])}
-                }]
-            });
-        });
-
-        // 操作趋势
-        $.get(API + '/analysis/operation/trend', r => {
-            if (r.code !== 200) return;
-            let html = '';
-            r.data.slice(-8).reverse().forEach(d => {
-                html += '<div class="row"><span class="date">' + d.date + '</span><span class="count">' + d.count + ' 次</span></div>';
-            });
-            $('#trendList').html(html);
+        $.get(API + '/screen/cluster', function (r) {
+            if (r.code === 200) renderCluster(r.data);
         });
     }
 
-    $(function() { loadStats(); loadCharts(); });
-    window.addEventListener('resize', () => allCharts.forEach(c => c.resize()));
+    $(function () {
+        loadAll();
+        setInterval(loadAll, 60000);
+    });
+    window.addEventListener('resize', function () { charts.forEach(function (c) { c.resize(); }); });
 </script>
 </body>
 </html>

@@ -25,6 +25,10 @@
         <java.version>17</java.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <hutool.version>5.8.28</hutool.version>
+        <!-- Hadoop 版本：与 docker-compose 中的集群版本保持一致，避免跨版本协议问题 -->
+        <hadoop.version>3.3.6</hadoop.version>
+        <!-- Hive 版本：与 docker-compose 中 bde2020/hive:2.3.2 的 JDBC 协议兼容 -->
+        <hive.version>3.1.3</hive.version>
     </properties>
 
     <!-- ========== 依赖 ========== -->
@@ -94,7 +98,7 @@
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-jdbc</artifactId>
-            <version>3.1.3</version>
+            <version>${hive.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.eclipse.jetty</groupId>
@@ -122,11 +126,29 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- Hadoop Common（Hive JDBC 的底层依赖） -->
+        <!--
+          Hive 服务运行时类（HiveSQLException 等）
+          hive-jdbc 中排除了 hive-service 以避免其传递引入 jetty/tomcat 与 Spring Boot 冲突，
+          但 HiveConnection 建立连接时会加载 org.apache.hive.service.cli.HiveSQLException，
+          缺少该类会导致 mode=real 时连接直接失败（NoClassDefFoundError，错误信息只有一个类名，极难排查）。
+          这里单独引入并排除全部传递依赖，只补齐运行时类，不额外引入冲突。
+        -->
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-service</artifactId>
+            <version>${hive.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- Hadoop Common（Hive JDBC 的底层依赖，同时为 MapReduce 提供 IO/序列化能力） -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>3.3.6</version>
+            <version>${hadoop.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -150,6 +172,58 @@
                 </exclusion>
                 <exclusion>
                     <groupId>tomcat</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- ========== MapReduce 依赖（真实 MR Job 提交能力） ========== -->
+        <!-- hadoop-mapreduce-client-core：Job / Mapper / Reducer / Partitioner / Combiner
+             等编程接口；配合 framework.name=yarn 可提交到集群，设为 local 时由
+             LocalJobRunner 在单 JVM 内完整执行 map→shuffle→reduce，用于本机验证。 -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.jetty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.servlet</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- hadoop-mapreduce-client-common：LocalJobRunner、分布式缓存、输入输出格式实现类 -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-common</artifactId>
+            <version>${hadoop.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j-impl</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.eclipse.jetty</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>

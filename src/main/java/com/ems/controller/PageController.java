@@ -31,6 +31,10 @@ public class PageController {
     @GetMapping("/bigdata")
     public String bigdata() { return "bigdata"; }
 
+    /** 效能数据可视化（一年期考勤/任务/绩效数据的多维分析） */
+    @GetMapping("/efficiency")
+    public String efficiency() { return "efficiency"; }
+
     @GetMapping("/bigdata-screen")
     public String bigdataScreen() { return "bigdata-screen"; }
 
